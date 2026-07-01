@@ -101,14 +101,15 @@ export function Canvas(props: CanvasProps): React.ReactElement {
     }
   }
 
-  // 4. Own cursor last so it always wins.
+  // 4. Own cursor last so it always wins. Use a big glyph so it's impossible
+  //    to miss, even on tiny fonts / low-contrast themes.
   if (
     ownCursor.y >= 0 &&
     ownCursor.y < viewport.height &&
     ownCursor.x >= 0 &&
     ownCursor.x < viewport.width
   ) {
-    overlayed[ownCursor.y]![ownCursor.x] = "+";
+    overlayed[ownCursor.y]![ownCursor.x] = "█";
   }
 
   return (
@@ -117,15 +118,21 @@ export function Canvas(props: CanvasProps): React.ReactElement {
         <Text key={y}>
           {row.map((cell, x) => {
             if (x === ownCursor.x && y === ownCursor.y) {
+              // Own cursor: bright yellow block on inverse.
               return (
-                <Text key={x} color="whiteBright" bold>
+                <Text key={x} color="yellow" inverse bold>
                   {cell}
                 </Text>
               );
             }
             const otherColor = otherCursors.get(`${x},${y}`);
             if (otherColor) {
-              return <Text key={x} color={otherColor}>{cell}</Text>;
+              // Remote cursor: user's initial, inverse on their color, bold.
+              return (
+                <Text key={x} color={otherColor} inverse bold>
+                  {cell}
+                </Text>
+              );
             }
             if (ghostCells.has(`${x},${y}`)) {
               return <Text key={x} dimColor>{cell}</Text>;

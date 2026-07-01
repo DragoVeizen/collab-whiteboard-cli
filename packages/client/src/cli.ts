@@ -9,6 +9,8 @@ function parseArgs(argv: string[]): { canvasId: string; name?: string } {
   let name: string | undefined;
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!;
+    // Skip the "--" separator pnpm passes through for arg forwarding.
+    if (a === "--") continue;
     if (a === "--name") {
       name = args[++i];
     } else if (!canvasId) {

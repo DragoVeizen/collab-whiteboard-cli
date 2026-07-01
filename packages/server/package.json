@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "build": "tsc",
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "dev-mongo": "tsx src/dev-mongo.ts"
   },
   "dependencies": {
     "@whiteboard/shared": "workspace:*",

@@ -70,3 +70,19 @@ ClientMessage/ServerEvent split) and client state.ts reducer with
   and remote cursors as colored ▓; statusbar.tsx shows canvasId, mode,
   cursor, online count, ws status. cli.ts parses argv, loads identity,
   renders <App/>. Verifier: GREEN (59/59).
+
+## 2026-07-01 — M5 e2e smoke + ghost preview
+
+Added ghost preview in canvas.tsx for pending 2-anchor shapes: dim outline
+of the shape (circle/line/square) that traces the cursor while the anchor
+is set, plus a ◆ marker at the anchor point. Ghost cells never overwrite
+real drawn content — only fill empty grid cells.
+
+Added scripts/smoke-e2e.ts — headless end-to-end smoke that drives two
+real WS clients against the running server + mongo and verifies fanout,
+server-stamped ts + userId, cursor broadcast-not-persisted, undo
+ownership enforcement, leave-on-disconnect, and reconnect-replay.
+Result: 11/11 PASS.
+
+Added packages/server/src/dev-mongo.ts + `dev-mongo` script so the smoke
+can run without docker (in-process mongodb-memory-server on 27017).

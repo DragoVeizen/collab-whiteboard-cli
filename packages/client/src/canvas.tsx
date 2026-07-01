@@ -1,12 +1,15 @@
 import React from "react";
 import { Box, Text } from "ink";
-import { composeGrid, type Viewport } from "./rendering.js";
+import { composeGrid, rasterizeShape, type Viewport } from "./rendering.js";
 import type { CanvasState } from "./state.js";
-import type { Coord } from "@whiteboard/shared";
+import type { Coord, Shape } from "@whiteboard/shared";
+import type { Mode } from "./input.js";
 
 export type CanvasProps = {
   state: CanvasState;
   ownCursor: Coord;
+  anchor: Coord | null;
+  mode: Mode;
   viewport: Viewport;
   ownUserId: string;
 };
@@ -22,17 +25,70 @@ const PALETTE = [
 
 function colorFor(userId: string): (typeof PALETTE)[number] {
   let h = 0;
-  for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) | 0;
+  for (let i = 0; i < userId.length; i++) {
+    h = (h * 31 + userId.charCodeAt(i)) | 0;
+  }
   return PALETTE[Math.abs(h) % PALETTE.length]!;
 }
 
-export function Canvas(props: CanvasProps): React.ReactElement {
-  const { state, ownCursor, viewport, ownUserId } = props;
-  const grid = composeGrid(state, viewport);
+// If we're mid-anchor for a 2-anchor shape, compute what would be drawn
+// if the user pressed space right now. Returns null in dot mode (no ghost
+// needed — the cursor already shows where the dot lands).
+function ghostShape(
+  mode: Mode,
+  anchor: Coord | null,
+  cursor: Coord,
+): Shape | null {
+  if (mode === "dot" || anchor === null) return null;
+  if (mode === "circle") {
+    const dx = Math.abs(cursor.x - anchor.x);
+    const dy = Math.abs(cursor.y - anchor.y);
+    return { kind: "circle", center: anchor, radius: Math.max(dx, dy) };
+  }
+  if (mode === "line") {
+    return { kind: "line", from: anchor, to: cursor };
+  }
+  return {
+    kind: "square",
+    tl: { x: Math.min(anchor.x, cursor.x), y: Math.min(anchor.y, cursor.y) },
+    br: { x: Math.max(anchor.x, cursor.x), y: Math.max(anchor.y, cursor.y) },
+  };
+}
 
+export function Canvas(props: CanvasProps): React.ReactElement {
+  const { state, ownCursor, anchor, mode, viewport, ownUserId } = props;
+  const grid = composeGrid(state, viewport);
   const overlayed = grid.map((row) => row.slice());
 
-  // Overlay other users' cursors as colored blocks.
+  // 1. Ghost preview — dim-colored outline of the pending 2-anchor shape.
+  const ghostCells = new Set<string>();
+  const ghost = ghostShape(mode, anchor, ownCursor);
+  if (ghost) {
+    for (const cell of rasterizeShape(ghost)) {
+      if (cell.x < 0 || cell.x >= viewport.width) continue;
+      if (cell.y < 0 || cell.y >= viewport.height) continue;
+      // Ghost cells only appear where the grid is empty — never obscure
+      // real drawn content.
+      if (overlayed[cell.y]![cell.x] === " ") {
+        overlayed[cell.y]![cell.x] = cell.char;
+      }
+      ghostCells.add(`${cell.x},${cell.y}`);
+    }
+  }
+
+  // 2. Anchor marker — small • at the anchor point so the user sees it.
+  if (
+    anchor &&
+    anchor.y >= 0 &&
+    anchor.y < viewport.height &&
+    anchor.x >= 0 &&
+    anchor.x < viewport.width
+  ) {
+    overlayed[anchor.y]![anchor.x] = "◆";
+    ghostCells.add(`${anchor.x},${anchor.y}`);
+  }
+
+  // 3. Other users' cursors as colored blocks.
   const otherCursors = new Map<string, string>();
   for (const [uid, presence] of state.presence) {
     if (uid === ownUserId) continue;
@@ -42,7 +98,8 @@ export function Canvas(props: CanvasProps): React.ReactElement {
       otherCursors.set(`${x},${y}`, colorFor(uid));
     }
   }
-  // Own cursor last (on top).
+
+  // 4. Own cursor last so it always wins.
   if (
     ownCursor.y >= 0 &&
     ownCursor.y < viewport.height &&
@@ -57,14 +114,19 @@ export function Canvas(props: CanvasProps): React.ReactElement {
       {overlayed.map((row, y) => (
         <Text key={y}>
           {row.map((cell, x) => {
-            const color = otherCursors.get(`${x},${y}`);
-            if (color) return <Text key={x} color={color}>{cell}</Text>;
             if (x === ownCursor.x && y === ownCursor.y) {
               return (
                 <Text key={x} color="whiteBright" bold>
                   {cell}
                 </Text>
               );
+            }
+            const otherColor = otherCursors.get(`${x},${y}`);
+            if (otherColor) {
+              return <Text key={x} color={otherColor}>{cell}</Text>;
+            }
+            if (ghostCells.has(`${x},${y}`)) {
+              return <Text key={x} dimColor>{cell}</Text>;
             }
             return <Text key={x}>{cell}</Text>;
           })}

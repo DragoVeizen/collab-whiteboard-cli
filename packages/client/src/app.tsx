@@ -69,6 +69,8 @@ export function App(props: AppProps): React.ReactElement {
       <Canvas
         state={canvasState}
         ownCursor={inputState.cursor}
+        anchor={inputState.anchor}
+        mode={inputState.mode}
         viewport={VIEWPORT}
         ownUserId={userId}
       />

@@ -225,3 +225,83 @@ describe("purity", () => {
     expect(JSON.stringify(s)).toBe(before);
   });
 });
+
+describe("tabs", () => {
+  it("tab toggles activeTab from canvas to chat", () => {
+    const r = reduceInput(S({ activeTab: "canvas" }), "tab", gen);
+    expect(r.state.activeTab).toBe("chat");
+    expect(r.emit).toBeNull();
+  });
+
+  it("tab toggles activeTab from chat back to canvas", () => {
+    const r = reduceInput(S({ activeTab: "chat" }), "tab", gen);
+    expect(r.state.activeTab).toBe("canvas");
+  });
+
+  it("tab clears pending anchor when leaving canvas", () => {
+    const s = S({ activeTab: "canvas", anchor: { x: 3, y: 3 } });
+    const r = reduceInput(s, "tab", gen);
+    expect(r.state.anchor).toBeNull();
+  });
+});
+
+describe("chat mode input", () => {
+  it("letter in chat mode appends to draft", () => {
+    const s = S({ activeTab: "chat", chatDraft: "he" });
+    const r = reduceInput(s, "y", gen);
+    expect(r.state.chatDraft).toBe("hey");
+    expect(r.emit).toBeNull();
+  });
+
+  it("backspace removes last draft char", () => {
+    const s = S({ activeTab: "chat", chatDraft: "hey" });
+    const r = reduceInput(s, "backspace", gen);
+    expect(r.state.chatDraft).toBe("he");
+  });
+
+  it("backspace on empty draft is a no-op", () => {
+    const s = S({ activeTab: "chat", chatDraft: "" });
+    const r = reduceInput(s, "backspace", gen);
+    expect(r.state.chatDraft).toBe("");
+  });
+
+  it("enter in chat mode emits chatMessage with the draft", () => {
+    const s = S({ activeTab: "chat", chatDraft: "hey there" });
+    const r = reduceInput(s, "enter", gen);
+    expect(r.emit).not.toBeNull();
+    expect(r.emit?.type).toBe("chatMessage");
+    if (r.emit?.type === "chatMessage") {
+      expect(r.emit.text).toBe("hey there");
+    }
+    expect(r.state.chatDraft).toBe("");
+  });
+
+  it("enter with empty draft is a no-op", () => {
+    const s = S({ activeTab: "chat", chatDraft: "" });
+    const r = reduceInput(s, "enter", gen);
+    expect(r.emit).toBeNull();
+  });
+
+  it("escape in chat mode clears the draft", () => {
+    const s = S({ activeTab: "chat", chatDraft: "hey" });
+    const r = reduceInput(s, "escape", gen);
+    expect(r.state.chatDraft).toBe("");
+  });
+
+  it("canvas keys (hjkl / 1234) do not touch canvas state in chat mode", () => {
+    const s = S({
+      activeTab: "chat",
+      chatDraft: "",
+      cursor: { x: 5, y: 5 },
+      mode: "dot",
+    });
+    // "j" in chat mode is a letter, so it appends to draft, not moves cursor.
+    const r = reduceInput(s, "j", gen);
+    expect(r.state.cursor).toEqual({ x: 5, y: 5 });
+    expect(r.state.chatDraft).toBe("j");
+    // "1" in chat mode types "1", does not switch mode.
+    const r2 = reduceInput(r.state, "1", gen);
+    expect(r2.state.mode).toBe("dot");
+    expect(r2.state.chatDraft).toBe("j1");
+  });
+});

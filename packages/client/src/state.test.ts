@@ -53,6 +53,33 @@ const leave = (userId: string): ServerEvent => ({
   chatId: "c1",
   userId,
 });
+const chatMessage = (
+  id: string,
+  userId: string,
+  ts: number,
+  text: string,
+): PersistableEvent => ({
+  type: "chatMessage",
+  id,
+  chatId: "c1",
+  userId,
+  userName: userId,
+  ts,
+  text,
+});
+const read = (
+  id: string,
+  userId: string,
+  ts: number,
+  messageId: string,
+): PersistableEvent => ({
+  type: "read",
+  id,
+  chatId: "c1",
+  userId,
+  ts,
+  messageId,
+});
 const dot = (x: number, y: number): Shape => ({ kind: "dot", at: { x, y } });
 
 describe("reducer: draw", () => {
@@ -185,5 +212,91 @@ describe("reducer: purity", () => {
     const b = reduce(initialState(), draw("e1", "u1", 100, dot(0, 0)));
     expect(a.shapes.get("e1")).toEqual(b.shapes.get("e1"));
     expect(a.clearedAt).toBe(b.clearedAt);
+  });
+});
+
+describe("reducer: chatMessage", () => {
+  it("chatMessage adds to messages map", () => {
+    const s = reduce(initialState(), chatMessage("m1", "u1", 100, "hey"));
+    expect(s.messages.has("m1")).toBe(true);
+    const msg = s.messages.get("m1");
+    expect(msg?.text).toBe("hey");
+    expect(msg?.userId).toBe("u1");
+    expect(msg?.ts).toBe(100);
+  });
+
+  it("multiple chatMessages preserve insertion order", () => {
+    let s = initialState();
+    s = reduce(s, chatMessage("m1", "u1", 100, "first"));
+    s = reduce(s, chatMessage("m2", "u2", 101, "second"));
+    s = reduce(s, chatMessage("m3", "u1", 102, "third"));
+    const ids = [...s.messages.keys()];
+    expect(ids).toEqual(["m1", "m2", "m3"]);
+  });
+
+  it("chatMessage does not mutate input state", () => {
+    const s0 = initialState();
+    const messagesBefore = s0.messages;
+    reduce(s0, chatMessage("m1", "u1", 100, "hi"));
+    expect(messagesBefore.size).toBe(0);
+  });
+});
+
+describe("reducer: read", () => {
+  it("read event adds userId to receipts set", () => {
+    let s = initialState();
+    s = reduce(s, chatMessage("m1", "u1", 100, "hi"));
+    s = reduce(s, read("r1", "u2", 101, "m1"));
+    const readers = s.readReceipts.get("m1");
+    expect(readers).toBeDefined();
+    expect(readers?.has("u2")).toBe(true);
+  });
+
+  it("multiple readers accumulate on same message", () => {
+    let s = initialState();
+    s = reduce(s, chatMessage("m1", "u1", 100, "hi"));
+    s = reduce(s, read("r1", "u2", 101, "m1"));
+    s = reduce(s, read("r2", "u3", 102, "m1"));
+    const readers = s.readReceipts.get("m1");
+    expect(readers?.size).toBe(2);
+    expect(readers?.has("u2")).toBe(true);
+    expect(readers?.has("u3")).toBe(true);
+  });
+
+  it("read of unknown message still records receipt", () => {
+    const s = reduce(
+      initialState(),
+      read("r1", "u2", 100, "nonexistent"),
+    );
+    // The reducer accepts the read event even if the message isn't in
+    // local state yet — history replay may deliver them out of order.
+    expect(s.readReceipts.get("nonexistent")?.has("u2")).toBe(true);
+  });
+
+  it("read is idempotent for the same user/message", () => {
+    let s = initialState();
+    s = reduce(s, chatMessage("m1", "u1", 100, "hi"));
+    s = reduce(s, read("r1", "u2", 101, "m1"));
+    s = reduce(s, read("r2", "u2", 102, "m1"));
+    expect(s.readReceipts.get("m1")?.size).toBe(1);
+  });
+});
+
+describe("reducer: clear + chat interaction", () => {
+  it("clear does not wipe messages", () => {
+    let s = initialState();
+    s = reduce(s, chatMessage("m1", "u1", 100, "hi"));
+    s = reduce(s, draw("e1", "u1", 101, dot(0, 0)));
+    s = reduce(s, clear("c1", "u1", 102));
+    expect(s.shapes.size).toBe(0);
+    expect(s.messages.has("m1")).toBe(true);
+  });
+
+  it("clear does not wipe readReceipts", () => {
+    let s = initialState();
+    s = reduce(s, chatMessage("m1", "u1", 100, "hi"));
+    s = reduce(s, read("r1", "u2", 101, "m1"));
+    s = reduce(s, clear("c1", "u1", 102));
+    expect(s.readReceipts.get("m1")?.has("u2")).toBe(true);
   });
 });

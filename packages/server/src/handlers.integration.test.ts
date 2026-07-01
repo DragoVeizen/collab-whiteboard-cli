@@ -327,4 +327,65 @@ describe("handlers integration", () => {
     expect(leave.type).toBe("leave");
     await closeAll(a);
   });
+
+  it("chat message broadcasts and persists", async () => {
+    const a = await connect("cx9", "ua", "A");
+    const b = await connect("cx9", "ub", "B");
+    a.ws.send(
+      JSON.stringify({
+        type: "chatMessage",
+        id: "m1",
+        text: "hey",
+      } satisfies ClientMessage),
+    );
+    const evt = await b.nextMatching(
+      (e) => e.type === "chatMessage" && e.id === "m1",
+    );
+    expect(evt.type).toBe("chatMessage");
+    if (evt.type === "chatMessage") {
+      expect(evt.userId).toBe("ua");
+      expect(evt.userName).toBe("A");
+      expect(evt.text).toBe("hey");
+      expect(evt.ts).toBeGreaterThan(0);
+    }
+    await closeAll(a, b);
+
+    // Reconnect a new client: chat message must be in the history replay.
+    const c = await connect("cx9", "uc", "C");
+    const hist = await c.nextMatching((e) => e.type === "history");
+    if (hist.type === "history") {
+      const found = hist.events.some(
+        (e) => e.type === "chatMessage" && e.id === "m1",
+      );
+      expect(found).toBe(true);
+    }
+    await closeAll(c);
+  });
+
+  it("read receipt broadcasts", async () => {
+    const a = await connect("cx10", "ua", "A");
+    const b = await connect("cx10", "ub", "B");
+    a.ws.send(
+      JSON.stringify({
+        type: "chatMessage",
+        id: "m2",
+        text: "hi",
+      } satisfies ClientMessage),
+    );
+    await b.nextMatching((e) => e.type === "chatMessage" && e.id === "m2");
+    b.ws.send(
+      JSON.stringify({
+        type: "read",
+        messageId: "m2",
+      } satisfies ClientMessage),
+    );
+    const evt = await a.nextMatching(
+      (e) => e.type === "read" && e.messageId === "m2",
+    );
+    expect(evt.type).toBe("read");
+    if (evt.type === "read") {
+      expect(evt.userId).toBe("ub");
+    }
+    await closeAll(a, b);
+  });
 });

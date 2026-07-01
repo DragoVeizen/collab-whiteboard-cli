@@ -2,6 +2,8 @@ import type { ClientMessage, Coord } from "@whiteboard/shared";
 
 export type Mode = "dot" | "circle" | "line" | "square";
 
+export type ActiveTab = "canvas" | "chat";
+
 export type InputState = {
   mode: Mode;
   cursor: Coord;
@@ -9,6 +11,8 @@ export type InputState = {
   ownDraws: string[];
   width: number;
   height: number;
+  activeTab: ActiveTab;
+  chatDraft: string;
 };
 
 export type InputResult = {
@@ -28,6 +32,8 @@ export function initialInputState(
     ownDraws: [],
     width,
     height,
+    activeTab: "canvas",
+    chatDraft: "",
   };
 }
 
@@ -52,6 +58,18 @@ export function reduceInput(
   key: string,
   idGen: () => string,
 ): InputResult {
+  // Tab always toggles the active view, regardless of which view is up.
+  // Leaves canvas: clear any pending anchor so it doesn't stick around.
+  if (key === "tab") {
+    const nextTab: ActiveTab =
+      state.activeTab === "canvas" ? "chat" : "canvas";
+    return noEmit({ ...state, activeTab: nextTab, anchor: null });
+  }
+
+  if (state.activeTab === "chat") {
+    return reduceChatInput(state, key, idGen);
+  }
+
   const newMode = modeKeys[key];
   if (newMode !== undefined) {
     return noEmit({ ...state, mode: newMode, anchor: null });
@@ -154,4 +172,12 @@ export function reduceInput(
     default:
       return noEmit(state);
   }
+}
+
+function reduceChatInput(
+  _state: InputState,
+  _key: string,
+  _idGen: () => string,
+): InputResult {
+  throw new Error("M6 not implemented: reduceChatInput");
 }

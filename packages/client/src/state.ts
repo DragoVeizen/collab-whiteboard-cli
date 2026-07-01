@@ -2,6 +2,15 @@ import type { Coord, Shape, ServerEvent } from "@whiteboard/shared";
 
 export type Presence = { name: string; cursor: Coord };
 
+// One chat message, as tracked in client state.
+export type ChatMessage = {
+  id: string;
+  userId: string;
+  userName: string;
+  ts: number;
+  text: string;
+};
+
 export type ChatState = {
   shapes: Map<string, Shape>;
   // Parallel to shapes: eventId → userId of whoever drew it.
@@ -10,6 +19,11 @@ export type ChatState = {
   undone: Set<string>;
   clearedAt: number;
   presence: Map<string, Presence>;
+  // Chat log for this room. Keyed by message id; insertion order is
+  // arrival order (which matches ts because the server stamps ts).
+  messages: Map<string, ChatMessage>;
+  // messageId → set of userIds who have read it.
+  readReceipts: Map<string, Set<string>>;
 };
 
 export function initialState(): ChatState {
@@ -19,6 +33,8 @@ export function initialState(): ChatState {
     undone: new Set(),
     clearedAt: 0,
     presence: new Map(),
+    messages: new Map(),
+    readReceipts: new Map(),
   };
 }
 
@@ -67,6 +83,12 @@ export function reduce(state: ChatState, event: ServerEvent): ChatState {
       const presence = new Map(state.presence);
       presence.delete(event.userId);
       return { ...state, presence };
+    }
+    case "chatMessage": {
+      throw new Error("M6 not implemented: reduce chatMessage");
+    }
+    case "read": {
+      throw new Error("M6 not implemented: reduce read");
     }
     case "history": {
       return event.events.reduce(reduce, state);

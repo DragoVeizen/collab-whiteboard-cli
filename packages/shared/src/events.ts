@@ -12,7 +12,9 @@ export type ClientMessage =
   | { type: "draw"; id: string; shape: Shape }
   | { type: "undo"; id: string; targetId: string }
   | { type: "clear"; id: string }
-  | { type: "cursor"; at: Coord };
+  | { type: "cursor"; at: Coord }
+  | { type: "chatMessage"; id: string; text: string }
+  | { type: "read"; messageId: string };
 
 // Events that are persisted to Mongo. Every one has id + chatId + userId + ts.
 // This is a strict subset of ServerEvent — cursor / join / leave / history / error
@@ -40,6 +42,23 @@ export type PersistableEvent =
       chatId: string;
       userId: string;
       ts: number;
+    }
+  | {
+      type: "chatMessage";
+      id: string;
+      chatId: string;
+      userId: string;
+      userName: string;
+      ts: number;
+      text: string;
+    }
+  | {
+      type: "read";
+      id: string;
+      chatId: string;
+      userId: string;
+      ts: number;
+      messageId: string;
     };
 
 export type ServerEvent =
@@ -117,6 +136,19 @@ export const ClientMessageSchema: z.ZodType<ClientMessage> = z.discriminatedUnio
         at: CoordSchema,
       })
       .strict(),
+    z
+      .object({
+        type: z.literal("chatMessage"),
+        id: z.string(),
+        text: z.string().min(1),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("read"),
+        messageId: z.string(),
+      })
+      .strict(),
   ],
 );
 
@@ -150,6 +182,27 @@ export const PersistableEventSchema: z.ZodType<PersistableEvent> = z.discriminat
         chatId: z.string(),
         userId: z.string(),
         ts: z.number(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("chatMessage"),
+        id: z.string(),
+        chatId: z.string(),
+        userId: z.string(),
+        userName: z.string(),
+        ts: z.number(),
+        text: z.string(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("read"),
+        id: z.string(),
+        chatId: z.string(),
+        userId: z.string(),
+        ts: z.number(),
+        messageId: z.string(),
       })
       .strict(),
   ],
@@ -209,6 +262,27 @@ export const ServerEventSchema: z.ZodType<ServerEvent> = z.discriminatedUnion(
         type: z.literal("leave"),
         chatId: z.string(),
         userId: z.string(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("chatMessage"),
+        id: z.string(),
+        chatId: z.string(),
+        userId: z.string(),
+        userName: z.string(),
+        ts: z.number(),
+        text: z.string(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("read"),
+        id: z.string(),
+        chatId: z.string(),
+        userId: z.string(),
+        ts: z.number(),
+        messageId: z.string(),
       })
       .strict(),
     z

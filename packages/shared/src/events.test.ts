@@ -159,4 +159,59 @@ describe("ServerEventSchema", () => {
       }),
     ).toThrow();
   });
+
+  it("chatMessage server event parses", () => {
+    const ev: ServerEvent = {
+      type: "chatMessage",
+      id: "m1",
+      chatId: "c1",
+      userId: "u1",
+      userName: "Vansh",
+      ts: 100,
+      text: "hello",
+    };
+    expect(() => ServerEventSchema.parse(ev)).not.toThrow();
+  });
+
+  it("read server event parses", () => {
+    const ev: ServerEvent = {
+      type: "read",
+      id: "r1",
+      chatId: "c1",
+      userId: "u2",
+      ts: 200,
+      messageId: "m1",
+    };
+    expect(() => ServerEventSchema.parse(ev)).not.toThrow();
+  });
+});
+
+describe("ClientMessage chat variants", () => {
+  it("chatMessage message parses", () => {
+    const msg: ClientMessage = { type: "chatMessage", id: "m1", text: "hi" };
+    expect(() => ClientMessageSchema.parse(msg)).not.toThrow();
+  });
+
+  it("read message parses", () => {
+    const msg: ClientMessage = { type: "read", messageId: "m1" };
+    expect(() => ClientMessageSchema.parse(msg)).not.toThrow();
+  });
+
+  it("rejects chatMessage with server-stamped fields", () => {
+    // Client cannot supply ts / userId / chatId / userName on outbound.
+    expect(() =>
+      ClientMessageSchema.parse({
+        type: "chatMessage",
+        id: "m1",
+        text: "hi",
+        ts: 999,
+      }),
+    ).toThrow();
+  });
+
+  it("rejects chatMessage with empty text", () => {
+    expect(() =>
+      ClientMessageSchema.parse({ type: "chatMessage", id: "m1", text: "" }),
+    ).toThrow();
+  });
 });

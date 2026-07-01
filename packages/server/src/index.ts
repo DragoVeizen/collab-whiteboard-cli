@@ -43,6 +43,7 @@ async function main(): Promise<void> {
       ws.close(1008, "missing canvasId or userId");
       return;
     }
+    console.log(`[conn] canvas=${canvasId} userId=${userId} name=${userName}`);
     const session: Session = { ws, canvasId, userId, userName };
     handleConnect(session, registry, store, () => Date.now()).catch(
       (err) => {

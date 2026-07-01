@@ -4,6 +4,9 @@ export type Presence = { name: string; cursor: Coord };
 
 export type CanvasState = {
   shapes: Map<string, Shape>;
+  // Parallel to shapes: eventId → userId of whoever drew it.
+  // Used by the renderer to color shapes by author.
+  shapeAuthors: Map<string, string>;
   undone: Set<string>;
   clearedAt: number;
   presence: Map<string, Presence>;
@@ -12,6 +15,7 @@ export type CanvasState = {
 export function initialState(): CanvasState {
   return {
     shapes: new Map(),
+    shapeAuthors: new Map(),
     undone: new Set(),
     clearedAt: 0,
     presence: new Map(),
@@ -22,8 +26,10 @@ export function reduce(state: CanvasState, event: ServerEvent): CanvasState {
   switch (event.type) {
     case "draw": {
       const shapes = new Map(state.shapes);
+      const shapeAuthors = new Map(state.shapeAuthors);
       shapes.set(event.id, event.shape);
-      return { ...state, shapes };
+      shapeAuthors.set(event.id, event.userId);
+      return { ...state, shapes, shapeAuthors };
     }
     case "undo": {
       const undone = new Set(state.undone);
@@ -34,6 +40,7 @@ export function reduce(state: CanvasState, event: ServerEvent): CanvasState {
       return {
         ...state,
         shapes: new Map(),
+        shapeAuthors: new Map(),
         undone: new Set(),
         clearedAt: event.ts,
       };

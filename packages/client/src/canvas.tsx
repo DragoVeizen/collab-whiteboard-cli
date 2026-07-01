@@ -1,6 +1,11 @@
 import React from "react";
+import {
+  composeColoredGrid,
+  rasterizeShape,
+  type ColoredCell,
+  type Viewport,
+} from "./rendering.js";
 import { Box, Text } from "ink";
-import { composeGrid, rasterizeShape, type Viewport } from "./rendering.js";
 import type { CanvasState } from "./state.js";
 import type { Coord, Shape } from "@whiteboard/shared";
 import type { Mode } from "./input.js";
@@ -31,9 +36,6 @@ function colorFor(userId: string): (typeof PALETTE)[number] {
   return PALETTE[Math.abs(h) % PALETTE.length]!;
 }
 
-// If we're mid-anchor for a 2-anchor shape, compute what would be drawn
-// if the user pressed space right now. Returns null in dot mode (no ghost
-// needed — the cursor already shows where the dot lands).
 function ghostShape(
   mode: Mode,
   anchor: Coord | null,
@@ -57,26 +59,27 @@ function ghostShape(
 
 export function Canvas(props: CanvasProps): React.ReactElement {
   const { state, ownCursor, anchor, mode, viewport, ownUserId } = props;
-  const grid = composeGrid(state, viewport);
-  const overlayed = grid.map((row) => row.slice());
+  const grid = composeColoredGrid(state, viewport);
+  const overlayed: ColoredCell[][] = grid.map((row) =>
+    row.map((c) => ({ ...c })),
+  );
 
-  // 1. Ghost preview — dim-colored outline of the pending 2-anchor shape.
+  // 1. Ghost preview — dim outline of the pending 2-anchor shape.
   const ghostCells = new Set<string>();
   const ghost = ghostShape(mode, anchor, ownCursor);
   if (ghost) {
     for (const cell of rasterizeShape(ghost)) {
       if (cell.x < 0 || cell.x >= viewport.width) continue;
       if (cell.y < 0 || cell.y >= viewport.height) continue;
-      // Ghost cells only appear where the grid is empty — never obscure
-      // real drawn content.
-      if (overlayed[cell.y]![cell.x] === " ") {
-        overlayed[cell.y]![cell.x] = cell.char;
+      // Only fill cells that are still empty so we never obscure real shapes.
+      if (overlayed[cell.y]![cell.x]!.char === " ") {
+        overlayed[cell.y]![cell.x] = { char: cell.char };
       }
       ghostCells.add(`${cell.x},${cell.y}`);
     }
   }
 
-  // 2. Anchor marker — small • at the anchor point so the user sees it.
+  // 2. Anchor marker.
   if (
     anchor &&
     anchor.y >= 0 &&
@@ -84,32 +87,30 @@ export function Canvas(props: CanvasProps): React.ReactElement {
     anchor.x >= 0 &&
     anchor.x < viewport.width
   ) {
-    overlayed[anchor.y]![anchor.x] = "◆";
+    overlayed[anchor.y]![anchor.x] = { char: "◆" };
     ghostCells.add(`${anchor.x},${anchor.y}`);
   }
 
-  // 3. Other users' cursors as their first-initial in a per-user color,
-  //    so you can tell who's who at a glance.
+  // 3. Other users' cursors — their initial in the peer color.
   const otherCursors = new Map<string, string>();
   for (const [uid, presence] of state.presence) {
     if (uid === ownUserId) continue;
     const { x, y } = presence.cursor;
     if (y >= 0 && y < viewport.height && x >= 0 && x < viewport.width) {
       const label = (presence.name?.[0] ?? "?").toUpperCase();
-      overlayed[y]![x] = label;
+      overlayed[y]![x] = { char: label };
       otherCursors.set(`${x},${y}`, colorFor(uid));
     }
   }
 
-  // 4. Own cursor last so it always wins. Use a big glyph so it's impossible
-  //    to miss, even on tiny fonts / low-contrast themes.
+  // 4. Own cursor wins.
   if (
     ownCursor.y >= 0 &&
     ownCursor.y < viewport.height &&
     ownCursor.x >= 0 &&
     ownCursor.x < viewport.width
   ) {
-    overlayed[ownCursor.y]![ownCursor.x] = "█";
+    overlayed[ownCursor.y]![ownCursor.x] = { char: "█" };
   }
 
   return (
@@ -118,11 +119,9 @@ export function Canvas(props: CanvasProps): React.ReactElement {
         <Text key={y}>
           {row.map((cell, x) => {
             if (x === ownCursor.x && y === ownCursor.y) {
-              // Own cursor — plain bright yellow. No inverse/bold/backgroundColor
-              // tricks; some terminals swallow those and end up rendering nothing.
               return (
                 <Text key={x} color="yellow">
-                  {cell}
+                  {cell.char}
                 </Text>
               );
             }
@@ -130,14 +129,26 @@ export function Canvas(props: CanvasProps): React.ReactElement {
             if (otherColor) {
               return (
                 <Text key={x} color={otherColor}>
-                  {cell}
+                  {cell.char}
                 </Text>
               );
             }
             if (ghostCells.has(`${x},${y}`)) {
-              return <Text key={x} dimColor>{cell}</Text>;
+              return (
+                <Text key={x} dimColor>
+                  {cell.char}
+                </Text>
+              );
             }
-            return <Text key={x}>{cell}</Text>;
+            // Shape cell — color by whoever drew it.
+            if (cell.userId) {
+              return (
+                <Text key={x} color={colorFor(cell.userId)}>
+                  {cell.char}
+                </Text>
+              );
+            }
+            return <Text key={x}>{cell.char}</Text>;
           })}
         </Text>
       ))}

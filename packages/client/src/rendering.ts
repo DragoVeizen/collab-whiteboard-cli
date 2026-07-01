@@ -146,24 +146,40 @@ export function rasterizeShape(shape: Shape): Cell[] {
   }
 }
 
-export function composeGrid(
+// Per-cell result of the composer: the visible character plus, for cells that
+// came from a real drawn shape, the userId of whoever drew it. The renderer
+// uses userId to color the cell.
+export type ColoredCell = { char: string; userId?: string };
+
+export function composeColoredGrid(
   state: CanvasState,
   viewport: Viewport,
-): string[][] {
+): ColoredCell[][] {
   const { width, height } = viewport;
-  const grid: string[][] = [];
+  const grid: ColoredCell[][] = [];
   for (let y = 0; y < height; y++) {
-    const row: string[] = new Array<string>(width).fill(" ");
+    const row: ColoredCell[] = [];
+    for (let x = 0; x < width; x++) row.push({ char: " " });
     grid.push(row);
   }
   for (const [id, shape] of state.shapes) {
     if (state.undone.has(id)) continue;
+    const author = state.shapeAuthors.get(id);
     for (const cell of rasterizeShape(shape)) {
       if (cell.x < 0 || cell.x >= width) continue;
       if (cell.y < 0 || cell.y >= height) continue;
       const row = grid[cell.y];
-      if (row) row[cell.x] = cell.char;
+      if (row) row[cell.x] = { char: cell.char, userId: author };
     }
   }
   return grid;
+}
+
+export function composeGrid(
+  state: CanvasState,
+  viewport: Viewport,
+): string[][] {
+  return composeColoredGrid(state, viewport).map((row) =>
+    row.map((c) => c.char),
+  );
 }

@@ -1,49 +1,83 @@
-// M3 stub: interfaces are real. Impl throws — the M3 loop fills these in.
-
+import { MongoClient, type Collection, type Db } from "mongodb";
 import type { PersistableEvent } from "@whiteboard/shared";
 
-// Re-export for consumers importing from server package.
 export type { PersistableEvent };
 
-export type CanvasMeta = {
+type CanvasDoc = {
   _id: string;
   createdAt: number;
   lastActivityAt: number;
 };
 
 export class Store {
+  private client: MongoClient;
+  private db: Db | null = null;
+  private events: Collection<PersistableEvent> | null = null;
+  private canvases: Collection<CanvasDoc> | null = null;
+
   constructor(
     private readonly url: string,
     private readonly dbName: string,
   ) {
-    void this.url;
-    void this.dbName;
+    this.client = new MongoClient(url);
   }
 
   async connect(): Promise<void> {
-    throw new Error("M3 not implemented: Store.connect");
+    await this.client.connect();
+    this.db = this.client.db(this.dbName);
+    this.events = this.db.collection<PersistableEvent>("events");
+    this.canvases = this.db.collection<CanvasDoc>("canvases");
+    await this.events.createIndex({ canvasId: 1, ts: 1 });
   }
 
   async close(): Promise<void> {
-    throw new Error("M3 not implemented: Store.close");
+    await this.client.close();
+    this.db = null;
+    this.events = null;
+    this.canvases = null;
   }
 
-  async upsertCanvas(_canvasId: string, _now: number): Promise<void> {
-    throw new Error("M3 not implemented: Store.upsertCanvas");
+  private requireEvents(): Collection<PersistableEvent> {
+    if (!this.events) throw new Error("Store not connected");
+    return this.events;
   }
 
-  async appendEvent(_event: PersistableEvent): Promise<void> {
-    throw new Error("M3 not implemented: Store.appendEvent");
+  private requireCanvases(): Collection<CanvasDoc> {
+    if (!this.canvases) throw new Error("Store not connected");
+    return this.canvases;
   }
 
-  async loadHistory(_canvasId: string): Promise<PersistableEvent[]> {
-    throw new Error("M3 not implemented: Store.loadHistory");
+  async upsertCanvas(canvasId: string, now: number): Promise<void> {
+    await this.requireCanvases().updateOne(
+      { _id: canvasId },
+      {
+        $set: { lastActivityAt: now },
+        $setOnInsert: { createdAt: now },
+      },
+      { upsert: true },
+    );
+  }
+
+  async appendEvent(event: PersistableEvent): Promise<void> {
+    await this.requireEvents().insertOne(event);
+  }
+
+  async loadHistory(canvasId: string): Promise<PersistableEvent[]> {
+    const docs = await this.requireEvents()
+      .find({ canvasId })
+      .sort({ ts: 1 })
+      .toArray();
+    // strip the mongo-generated _id — clients only receive the wire shape.
+    return docs.map(({ _id, ...rest }) => rest) as PersistableEvent[];
   }
 
   async findEventById(
-    _canvasId: string,
-    _id: string,
+    canvasId: string,
+    id: string,
   ): Promise<PersistableEvent | null> {
-    throw new Error("M3 not implemented: Store.findEventById");
+    const doc = await this.requireEvents().findOne({ canvasId, id });
+    if (!doc) return null;
+    const { _id, ...rest } = doc;
+    return rest as PersistableEvent;
   }
 }

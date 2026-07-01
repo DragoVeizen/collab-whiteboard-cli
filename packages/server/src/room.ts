@@ -1,21 +1,28 @@
-// M3 stub: interfaces are real. Impl throws — the M3 loop fills these in.
-
 import type { WebSocket } from "ws";
 import type { ServerEvent } from "@whiteboard/shared";
+
+// ws.WebSocket.OPEN = 1 — pinned here so room.ts can stay a type-only import
+// of the ws lib. Any socket not in OPEN state is silently skipped by broadcast.
+const OPEN = 1;
 
 export class Room {
   private sockets: Set<WebSocket> = new Set();
 
-  add(_ws: WebSocket): void {
-    throw new Error("M3 not implemented: Room.add");
+  add(ws: WebSocket): void {
+    this.sockets.add(ws);
   }
 
-  remove(_ws: WebSocket): void {
-    throw new Error("M3 not implemented: Room.remove");
+  remove(ws: WebSocket): void {
+    this.sockets.delete(ws);
   }
 
-  broadcast(_event: ServerEvent, _opts?: { except?: WebSocket }): void {
-    throw new Error("M3 not implemented: Room.broadcast");
+  broadcast(event: ServerEvent, opts?: { except?: WebSocket }): void {
+    const msg = JSON.stringify(event);
+    for (const ws of this.sockets) {
+      if (opts?.except === ws) continue;
+      if (ws.readyState !== OPEN) continue;
+      ws.send(msg);
+    }
   }
 
   get size(): number {
@@ -26,11 +33,19 @@ export class Room {
 export class RoomRegistry {
   private rooms: Map<string, Room> = new Map();
 
-  get(_canvasId: string): Room {
-    throw new Error("M3 not implemented: RoomRegistry.get");
+  get(canvasId: string): Room {
+    let room = this.rooms.get(canvasId);
+    if (!room) {
+      room = new Room();
+      this.rooms.set(canvasId, room);
+    }
+    return room;
   }
 
-  removeIfEmpty(_canvasId: string): void {
-    throw new Error("M3 not implemented: RoomRegistry.removeIfEmpty");
+  removeIfEmpty(canvasId: string): void {
+    const room = this.rooms.get(canvasId);
+    if (room && room.size === 0) {
+      this.rooms.delete(canvasId);
+    }
   }
 }

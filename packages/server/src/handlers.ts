@@ -1,6 +1,9 @@
-// M3 stub: signatures are real. Impl throws — the M3 loop fills these in.
-
-import type { WebSocket } from "ws";
+import { WebSocket } from "ws";
+import {
+  ClientMessageSchema,
+  type PersistableEvent,
+  type ServerEvent,
+} from "@whiteboard/shared";
 import type { RoomRegistry } from "./room.js";
 import type { Store } from "./store.js";
 
@@ -11,28 +14,153 @@ export type Session = {
   userName: string;
 };
 
+function safeSend(ws: WebSocket, event: ServerEvent): void {
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(event));
+  }
+}
+
 export async function handleConnect(
-  _session: Session,
-  _registry: RoomRegistry,
-  _store: Store,
-  _now: () => number,
+  session: Session,
+  registry: RoomRegistry,
+  store: Store,
+  now: () => number,
 ): Promise<void> {
-  throw new Error("M3 not implemented: handleConnect");
+  const { ws, canvasId, userId, userName } = session;
+
+  // Register room membership BEFORE any await. Otherwise a broadcast fired
+  // during our mongo round-trips would miss this socket. The reducer is
+  // idempotent on persisted events (Map.set by id, Set.add), so a client
+  // seeing live events before its history is safe.
+  const room = registry.get(canvasId);
+  room.add(ws);
+  const joinEvent: ServerEvent = {
+    type: "join",
+    canvasId,
+    userId,
+    userName,
+  };
+  room.broadcast(joinEvent);
+
+  const nowTs = now();
+  await store.upsertCanvas(canvasId, nowTs);
+  const history = await store.loadHistory(canvasId);
+  safeSend(ws, { type: "history", events: history });
 }
 
 export async function handleMessage(
-  _session: Session,
-  _raw: string,
-  _registry: RoomRegistry,
-  _store: Store,
-  _now: () => number,
+  session: Session,
+  raw: string,
+  registry: RoomRegistry,
+  store: Store,
+  now: () => number,
 ): Promise<void> {
-  throw new Error("M3 not implemented: handleMessage");
+  const { ws, canvasId, userId, userName } = session;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    ws.close(1003, "invalid json");
+    return;
+  }
+
+  const result = ClientMessageSchema.safeParse(parsed);
+  if (!result.success) {
+    ws.close(1003, "invalid message");
+    return;
+  }
+
+  const msg = result.data;
+  const ts = now();
+  const room = registry.get(canvasId);
+
+  switch (msg.type) {
+    case "draw": {
+      const event: PersistableEvent = {
+        type: "draw",
+        id: msg.id,
+        canvasId,
+        userId,
+        ts,
+        shape: msg.shape,
+      };
+      try {
+        await store.appendEvent(event);
+      } catch (err) {
+        safeSend(ws, {
+          type: "error",
+          code: "persist_failed",
+          msg: String(err),
+        });
+        return;
+      }
+      await store.upsertCanvas(canvasId, ts);
+      room.broadcast(event);
+      break;
+    }
+    case "undo": {
+      const target = await store.findEventById(canvasId, msg.targetId);
+      if (target && target.userId !== userId) {
+        safeSend(ws, {
+          type: "error",
+          code: "undo_forbidden",
+          msg: "can only undo your own shapes",
+        });
+        return;
+      }
+      const event: PersistableEvent = {
+        type: "undo",
+        id: msg.id,
+        canvasId,
+        userId,
+        ts,
+        targetId: msg.targetId,
+      };
+      await store.appendEvent(event);
+      await store.upsertCanvas(canvasId, ts);
+      room.broadcast(event);
+      break;
+    }
+    case "clear": {
+      const event: PersistableEvent = {
+        type: "clear",
+        id: msg.id,
+        canvasId,
+        userId,
+        ts,
+      };
+      await store.appendEvent(event);
+      await store.upsertCanvas(canvasId, ts);
+      room.broadcast(event);
+      break;
+    }
+    case "cursor": {
+      const event: ServerEvent = {
+        type: "cursor",
+        canvasId,
+        userId,
+        userName,
+        at: msg.at,
+      };
+      room.broadcast(event);
+      break;
+    }
+  }
 }
 
 export function handleDisconnect(
-  _session: Session,
-  _registry: RoomRegistry,
+  session: Session,
+  registry: RoomRegistry,
 ): void {
-  throw new Error("M3 not implemented: handleDisconnect");
+  const { ws, canvasId, userId } = session;
+  const room = registry.get(canvasId);
+  room.remove(ws);
+  const leaveEvent: ServerEvent = {
+    type: "leave",
+    canvasId,
+    userId,
+  };
+  room.broadcast(leaveEvent);
+  registry.removeIfEmpty(canvasId);
 }

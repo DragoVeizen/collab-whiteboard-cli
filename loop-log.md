@@ -38,3 +38,21 @@ ClientMessage/ServerEvent split) and client state.ts reducer with
   sequential fold. No Map/Set is mutated in-place — every case creates
   new instances.
   Verifier: GREEN (37 checks pass).
+
+## 2026-07-01 — M3 inline (self-paced /loop, 2 turns)
+
+- Turn 1: implemented Room + RoomRegistry, Store (mongodb driver, upsertCanvas
+  with $set/$setOnInsert, loadHistory sorted by ts, findEventById scoped to
+  canvasId, strips mongo _id on read), handlers.ts (ClientMessageSchema
+  validation, close(1003) on parse fail, undo ownership check via
+  findEventById + type:"error" code:"undo_forbidden" to sender only, cursor
+  case broadcasts without appendEvent), index.ts bootstrap with WS
+  query-string session extraction. Verifier: RED — 1 test failed. "cursor
+  broadcast but not persisted" timed out; B was still in mongo round-trip
+  when A sent cursor, so B wasn't in the room yet.
+
+- Turn 2: reordered handleConnect — room.add(ws) + broadcast(join) now
+  happen synchronously before any await. Rationale: room membership
+  shouldn't wait on mongo. The M2 reducer is idempotent on persisted
+  events (Map.set keyed by id, Set.add for undone) so live events
+  arriving before history are safe. Verifier: GREEN (45/45).

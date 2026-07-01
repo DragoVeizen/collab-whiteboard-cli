@@ -1,6 +1,3 @@
-// M2 stub: types are real (encode the wire-format spec §4).
-// Zod schemas throw — the M2 loop implements them.
-
 import { z } from "zod";
 
 export type Coord = { x: number; y: number };
@@ -53,15 +50,137 @@ export type ServerEvent =
   | { type: "history"; events: ServerEvent[] }
   | { type: "error"; code: string; msg: string };
 
-// M2 loop must replace these with real zod schemas that match the types above.
-export const ClientMessageSchema: z.ZodType<ClientMessage> = z.custom<ClientMessage>(
-  () => {
-    throw new Error("M2 not implemented: ClientMessageSchema");
-  },
+const CoordSchema = z
+  .object({
+    x: z.number(),
+    y: z.number(),
+  })
+  .strict();
+
+const ShapeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("dot"), at: CoordSchema }).strict(),
+  z
+    .object({
+      kind: z.literal("circle"),
+      center: CoordSchema,
+      radius: z.number(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("square"),
+      tl: CoordSchema,
+      br: CoordSchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("line"),
+      from: CoordSchema,
+      to: CoordSchema,
+    })
+    .strict(),
+]);
+
+export const ClientMessageSchema: z.ZodType<ClientMessage> = z.discriminatedUnion(
+  "type",
+  [
+    z
+      .object({
+        type: z.literal("draw"),
+        id: z.string(),
+        shape: ShapeSchema,
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("undo"),
+        id: z.string(),
+        targetId: z.string(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("clear"),
+        id: z.string(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("cursor"),
+        at: CoordSchema,
+      })
+      .strict(),
+  ],
 );
 
-export const ServerEventSchema: z.ZodType<ServerEvent> = z.custom<ServerEvent>(
-  () => {
-    throw new Error("M2 not implemented: ServerEventSchema");
-  },
+export const ServerEventSchema: z.ZodType<ServerEvent> = z.lazy(() =>
+  z.discriminatedUnion("type", [
+    z
+      .object({
+        type: z.literal("draw"),
+        id: z.string(),
+        canvasId: z.string(),
+        userId: z.string(),
+        ts: z.number(),
+        shape: ShapeSchema,
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("undo"),
+        id: z.string(),
+        canvasId: z.string(),
+        userId: z.string(),
+        ts: z.number(),
+        targetId: z.string(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("clear"),
+        id: z.string(),
+        canvasId: z.string(),
+        userId: z.string(),
+        ts: z.number(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("cursor"),
+        canvasId: z.string(),
+        userId: z.string(),
+        userName: z.string(),
+        at: CoordSchema,
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("join"),
+        canvasId: z.string(),
+        userId: z.string(),
+        userName: z.string(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("leave"),
+        canvasId: z.string(),
+        userId: z.string(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("history"),
+        events: z.array(ServerEventSchema),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("error"),
+        code: z.string(),
+        msg: z.string(),
+      })
+      .strict(),
+  ]),
 );

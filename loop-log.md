@@ -22,3 +22,19 @@ Scaffolded pnpm workspace + 3 packages + docker-compose + canary tests.
 Next: M2 — shared events.ts (Event/Shape types + zod schemas +
 ClientMessage/ServerEvent split) and client state.ts reducer with
 ≥15 unit tests. To be driven via /loop.
+
+## 2026-07-01 — M2 inline (self-paced /loop, 1 turn)
+
+- Turn 1: implemented ClientMessageSchema (discriminatedUnion of draw/undo/
+  clear/cursor, all .strict() to reject unknown fields), Shape schema
+  (discriminatedUnion of dot/circle/square/line), ServerEventSchema
+  (all 8 variants with server-authoritative fields; z.lazy on the
+  outer schema so history's recursive events array resolves).
+  Implemented reduce() as a pure switch on event.type — draw sets by
+  event.id (Map.set makes same-id idempotent), undo adds targetId to a
+  new Set, clear wipes shapes+undone and stamps clearedAt (leaving
+  presence untouched), cursor/join/leave return a fresh presence Map,
+  history uses Array.reduce(reduce, state) so history is exactly a
+  sequential fold. No Map/Set is mutated in-place — every case creates
+  new instances.
+  Verifier: GREEN (37 checks pass).

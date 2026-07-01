@@ -56,3 +56,17 @@ ClientMessage/ServerEvent split) and client state.ts reducer with
   shouldn't wait on mongo. The M2 reducer is idempotent on persisted
   events (Map.set keyed by id, Set.add for undone) so live events
   arriving before history are safe. Verifier: GREEN (45/45).
+
+## 2026-07-01 — M4 inline (self-paced /loop, 1 turn)
+
+- Turn 1: implemented input.ts (vim-style state machine, 1234 for modes,
+  hjkl movement, HJKL x5, two-anchor state for circle/line/square, u/x/q/
+  space/escape actions, clamps cursor to viewport). rendering.ts with pure
+  rasterizers: dot (•), midpoint-circle (o), square outline with box chars
+  (┌┐└┘─│) + degenerate 1D/point cases, Bresenham line (chars picked by
+  slope: ━ │ ╱ ╲). composeGrid overlays visible shapes, skipping undone
+  ids and off-viewport cells. Ink app.tsx wires WsClient + reducer +
+  input state machine via useInput; canvas.tsx overlays own cursor as +
+  and remote cursors as colored ▓; statusbar.tsx shows canvasId, mode,
+  cursor, online count, ws status. cli.ts parses argv, loads identity,
+  renders <App/>. Verifier: GREEN (59/59).

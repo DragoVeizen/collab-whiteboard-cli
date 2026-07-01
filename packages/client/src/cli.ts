@@ -1,7 +1,39 @@
-// M4 stub: CLI entry point. Impl throws.
+import React from "react";
+import { render } from "ink";
+import { App } from "./app.js";
+import { loadOrCreateIdentity } from "./identity.js";
+
+function parseArgs(argv: string[]): { canvasId: string; name?: string } {
+  const args = argv.slice(2);
+  let canvasId = "";
+  let name: string | undefined;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]!;
+    if (a === "--name") {
+      name = args[++i];
+    } else if (!canvasId) {
+      canvasId = a;
+    }
+  }
+  return { canvasId, name };
+}
 
 async function main(): Promise<void> {
-  throw new Error("M4 not implemented: CLI entry");
+  const { canvasId, name } = parseArgs(process.argv);
+  if (!canvasId) {
+    console.error("usage: whiteboard <canvasId> [--name <name>]");
+    process.exit(1);
+  }
+  const identity = loadOrCreateIdentity(name);
+  const wsUrl = process.env.WS_URL ?? "ws://localhost:8787";
+  render(
+    React.createElement(App, {
+      canvasId,
+      userId: identity.userId,
+      userName: identity.name,
+      wsUrl,
+    }),
+  );
 }
 
 main().catch((err) => {

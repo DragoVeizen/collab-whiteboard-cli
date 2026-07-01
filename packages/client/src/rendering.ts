@@ -1,6 +1,3 @@
-// M4 stub: rasterizer signatures are real. Impls throw — the M4 loop
-// fills these with dot/circle/square/line algorithms.
-
 import type { Shape } from "@whiteboard/shared";
 import type { CanvasState } from "./state.js";
 
@@ -8,37 +5,165 @@ export type Cell = { x: number; y: number; char: string };
 
 export type Viewport = { width: number; height: number };
 
-export function rasterizeDot(_shape: Extract<Shape, { kind: "dot" }>): Cell[] {
-  throw new Error("M4 not implemented: rasterizeDot");
+export function rasterizeDot(shape: Extract<Shape, { kind: "dot" }>): Cell[] {
+  return [{ x: shape.at.x, y: shape.at.y, char: "•" }];
 }
 
 export function rasterizeCircle(
-  _shape: Extract<Shape, { kind: "circle" }>,
+  shape: Extract<Shape, { kind: "circle" }>,
 ): Cell[] {
-  throw new Error("M4 not implemented: rasterizeCircle");
+  const { center, radius } = shape;
+  if (radius <= 0) {
+    return [{ x: center.x, y: center.y, char: "o" }];
+  }
+  // Midpoint circle algorithm with 8-way symmetry, then dedup.
+  const points = new Set<string>();
+  const push = (x: number, y: number) => points.add(`${x},${y}`);
+  let x = 0;
+  let y = radius;
+  let d = 1 - radius;
+  while (x <= y) {
+    push(center.x + x, center.y + y);
+    push(center.x - x, center.y + y);
+    push(center.x + x, center.y - y);
+    push(center.x - x, center.y - y);
+    push(center.x + y, center.y + x);
+    push(center.x - y, center.y + x);
+    push(center.x + y, center.y - x);
+    push(center.x - y, center.y - x);
+    if (d < 0) {
+      d += 2 * x + 3;
+    } else {
+      d += 2 * (x - y) + 5;
+      y -= 1;
+    }
+    x += 1;
+  }
+  const cells: Cell[] = [];
+  for (const p of points) {
+    const [sx, sy] = p.split(",");
+    cells.push({ x: Number(sx), y: Number(sy), char: "o" });
+  }
+  return cells;
 }
 
 export function rasterizeSquare(
-  _shape: Extract<Shape, { kind: "square" }>,
+  shape: Extract<Shape, { kind: "square" }>,
 ): Cell[] {
-  throw new Error("M4 not implemented: rasterizeSquare");
+  const tl = {
+    x: Math.min(shape.tl.x, shape.br.x),
+    y: Math.min(shape.tl.y, shape.br.y),
+  };
+  const br = {
+    x: Math.max(shape.tl.x, shape.br.x),
+    y: Math.max(shape.tl.y, shape.br.y),
+  };
+  const cells: Cell[] = [];
+
+  // 1-tall / 1-wide degenerate: emit a single row or column of "─"/"│".
+  if (tl.y === br.y && tl.x === br.x) {
+    cells.push({ x: tl.x, y: tl.y, char: "┌" });
+    return cells;
+  }
+  if (tl.y === br.y) {
+    for (let x = tl.x; x <= br.x; x++) {
+      cells.push({ x, y: tl.y, char: "─" });
+    }
+    return cells;
+  }
+  if (tl.x === br.x) {
+    for (let y = tl.y; y <= br.y; y++) {
+      cells.push({ x: tl.x, y, char: "│" });
+    }
+    return cells;
+  }
+
+  // Top row
+  for (let x = tl.x; x <= br.x; x++) {
+    let char = "─";
+    if (x === tl.x) char = "┌";
+    else if (x === br.x) char = "┐";
+    cells.push({ x, y: tl.y, char });
+  }
+  // Bottom row
+  for (let x = tl.x; x <= br.x; x++) {
+    let char = "─";
+    if (x === tl.x) char = "└";
+    else if (x === br.x) char = "┘";
+    cells.push({ x, y: br.y, char });
+  }
+  // Left/right columns (interior of the vertical span)
+  for (let y = tl.y + 1; y < br.y; y++) {
+    cells.push({ x: tl.x, y, char: "│" });
+    cells.push({ x: br.x, y, char: "│" });
+  }
+  return cells;
 }
 
 export function rasterizeLine(
-  _shape: Extract<Shape, { kind: "line" }>,
+  shape: Extract<Shape, { kind: "line" }>,
 ): Cell[] {
-  throw new Error("M4 not implemented: rasterizeLine");
+  const { from, to } = shape;
+  let char = "━";
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (dy === 0 && dx === 0) char = "•";
+  else if (dy === 0) char = "━";
+  else if (dx === 0) char = "│";
+  else char = (dx > 0) === (dy > 0) ? "╲" : "╱";
+
+  // Bresenham
+  const cells: Cell[] = [];
+  const adx = Math.abs(dx);
+  const ady = Math.abs(dy);
+  const sx = from.x < to.x ? 1 : -1;
+  const sy = from.y < to.y ? 1 : -1;
+  let err = adx - ady;
+  let x = from.x;
+  let y = from.y;
+  while (true) {
+    cells.push({ x, y, char });
+    if (x === to.x && y === to.y) break;
+    const e2 = 2 * err;
+    if (e2 > -ady) {
+      err -= ady;
+      x += sx;
+    }
+    if (e2 < adx) {
+      err += adx;
+      y += sy;
+    }
+  }
+  return cells;
 }
 
-export function rasterizeShape(_shape: Shape): Cell[] {
-  throw new Error("M4 not implemented: rasterizeShape");
+export function rasterizeShape(shape: Shape): Cell[] {
+  switch (shape.kind) {
+    case "dot": return rasterizeDot(shape);
+    case "circle": return rasterizeCircle(shape);
+    case "square": return rasterizeSquare(shape);
+    case "line": return rasterizeLine(shape);
+  }
 }
 
-// Produces the char grid for the visible canvas — no cursors, no ghosts.
-// Cursors and pending anchors are overlaid by the view layer (app.tsx).
 export function composeGrid(
-  _state: CanvasState,
-  _viewport: Viewport,
+  state: CanvasState,
+  viewport: Viewport,
 ): string[][] {
-  throw new Error("M4 not implemented: composeGrid");
+  const { width, height } = viewport;
+  const grid: string[][] = [];
+  for (let y = 0; y < height; y++) {
+    const row: string[] = new Array<string>(width).fill(" ");
+    grid.push(row);
+  }
+  for (const [id, shape] of state.shapes) {
+    if (state.undone.has(id)) continue;
+    for (const cell of rasterizeShape(shape)) {
+      if (cell.x < 0 || cell.x >= width) continue;
+      if (cell.y < 0 || cell.y >= height) continue;
+      const row = grid[cell.y];
+      if (row) row[cell.x] = cell.char;
+    }
+  }
+  return grid;
 }

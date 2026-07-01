@@ -1,5 +1,3 @@
-// M4 stub: pure vim-style input state machine. Impl throws.
-
 import type { ClientMessage, Coord } from "@whiteboard/shared";
 
 export type Mode = "dot" | "circle" | "line" | "square";
@@ -7,10 +5,7 @@ export type Mode = "dot" | "circle" | "line" | "square";
 export type InputState = {
   mode: Mode;
   cursor: Coord;
-  // Pending anchor for 2-anchor shapes (circle, line, square).
-  // First press of space stores the anchor; second press emits the shape.
   anchor: Coord | null;
-  // Stack of my own draw event ids in order — used by `u` (undo my last draw).
   ownDraws: string[];
   width: number;
   height: number;
@@ -36,13 +31,127 @@ export function initialInputState(
   };
 }
 
-// Reduce a keystroke into a new input state plus an optional message to
-// send to the server. `idGen` is passed in so tests can produce
-// deterministic ids; production uses crypto.randomUUID.
+const clamp = (v: number, lo: number, hi: number): number =>
+  Math.max(lo, Math.min(v, hi));
+
+const noEmit = (state: InputState): InputResult => ({
+  state,
+  emit: null,
+  quit: false,
+});
+
+const modeKeys: Record<string, Mode> = {
+  "1": "dot",
+  "2": "circle",
+  "3": "line",
+  "4": "square",
+};
+
 export function reduceInput(
-  _state: InputState,
-  _key: string,
-  _idGen: () => string,
+  state: InputState,
+  key: string,
+  idGen: () => string,
 ): InputResult {
-  throw new Error("M4 not implemented: reduceInput");
+  const newMode = modeKeys[key];
+  if (newMode !== undefined) {
+    return noEmit({ ...state, mode: newMode, anchor: null });
+  }
+
+  const move = (dx: number, dy: number): InputResult =>
+    noEmit({
+      ...state,
+      cursor: {
+        x: clamp(state.cursor.x + dx, 0, state.width - 1),
+        y: clamp(state.cursor.y + dy, 0, state.height - 1),
+      },
+    });
+
+  switch (key) {
+    case "h": return move(-1, 0);
+    case "j": return move(0, 1);
+    case "k": return move(0, -1);
+    case "l": return move(1, 0);
+    case "H": return move(-5, 0);
+    case "J": return move(0, 5);
+    case "K": return move(0, -5);
+    case "L": return move(5, 0);
+    case "escape":
+      return noEmit({ ...state, anchor: null });
+    case "q":
+      return { state, emit: null, quit: true };
+    case "u": {
+      if (state.ownDraws.length === 0) return noEmit(state);
+      const target = state.ownDraws[state.ownDraws.length - 1]!;
+      const ownDraws = state.ownDraws.slice(0, -1);
+      return {
+        state: { ...state, ownDraws },
+        emit: { type: "undo", id: idGen(), targetId: target },
+        quit: false,
+      };
+    }
+    case "x":
+      return {
+        state,
+        emit: { type: "clear", id: idGen() },
+        quit: false,
+      };
+    case "space": {
+      const { mode, cursor, anchor } = state;
+      if (mode === "dot") {
+        const id = idGen();
+        return {
+          state: { ...state, ownDraws: [...state.ownDraws, id] },
+          emit: {
+            type: "draw",
+            id,
+            shape: { kind: "dot", at: { x: cursor.x, y: cursor.y } },
+          },
+          quit: false,
+        };
+      }
+      if (anchor === null) {
+        return noEmit({ ...state, anchor: { x: cursor.x, y: cursor.y } });
+      }
+      const id = idGen();
+      let shape;
+      if (mode === "circle") {
+        const dx = Math.abs(cursor.x - anchor.x);
+        const dy = Math.abs(cursor.y - anchor.y);
+        shape = {
+          kind: "circle" as const,
+          center: { x: anchor.x, y: anchor.y },
+          radius: Math.max(dx, dy),
+        };
+      } else if (mode === "line") {
+        shape = {
+          kind: "line" as const,
+          from: { x: anchor.x, y: anchor.y },
+          to: { x: cursor.x, y: cursor.y },
+        };
+      } else {
+        shape = {
+          kind: "square" as const,
+          tl: {
+            x: Math.min(anchor.x, cursor.x),
+            y: Math.min(anchor.y, cursor.y),
+          },
+          br: {
+            x: Math.max(anchor.x, cursor.x),
+            y: Math.max(anchor.y, cursor.y),
+          },
+        };
+      }
+      return {
+        state: {
+          ...state,
+          anchor: null,
+          ownDraws: [...state.ownDraws, id],
+        },
+        emit: { type: "draw", id, shape },
+        quit: false,
+      };
+    }
+    default:
+      return noEmit(state);
+  }
 }

@@ -3,9 +3,9 @@ import { render } from "ink";
 import { App } from "./app.js";
 import { loadOrCreateIdentity } from "./identity.js";
 
-function parseArgs(argv: string[]): { canvasId: string; name?: string } {
+function parseArgs(argv: string[]): { chatId: string; name?: string } {
   const args = argv.slice(2);
-  let canvasId = "";
+  let chatId = "";
   let name: string | undefined;
   for (let i = 0; i < args.length; i++) {
     const a = args[i]!;
@@ -13,24 +13,24 @@ function parseArgs(argv: string[]): { canvasId: string; name?: string } {
     if (a === "--") continue;
     if (a === "--name") {
       name = args[++i];
-    } else if (!canvasId) {
-      canvasId = a;
+    } else if (!chatId) {
+      chatId = a;
     }
   }
-  return { canvasId, name };
+  return { chatId, name };
 }
 
 async function main(): Promise<void> {
-  const { canvasId, name } = parseArgs(process.argv);
-  if (!canvasId) {
-    console.error("usage: whiteboard <canvasId> [--name <name>]");
+  const { chatId, name } = parseArgs(process.argv);
+  if (!chatId) {
+    console.error("usage: whiteboard <chatId> [--name <name>]");
     process.exit(1);
   }
   const identity = loadOrCreateIdentity(name);
   const wsUrl = process.env.WS_URL ?? "ws://localhost:8787";
   render(
     React.createElement(App, {
-      canvasId,
+      chatId,
       userId: identity.userId,
       userName: identity.name,
       wsUrl,

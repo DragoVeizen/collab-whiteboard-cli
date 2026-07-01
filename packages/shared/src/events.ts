@@ -14,14 +14,14 @@ export type ClientMessage =
   | { type: "clear"; id: string }
   | { type: "cursor"; at: Coord };
 
-// Events that are persisted to Mongo. Every one has id + canvasId + userId + ts.
+// Events that are persisted to Mongo. Every one has id + chatId + userId + ts.
 // This is a strict subset of ServerEvent — cursor / join / leave / history / error
 // are ephemeral and never written to the event log.
 export type PersistableEvent =
   | {
       type: "draw";
       id: string;
-      canvasId: string;
+      chatId: string;
       userId: string;
       ts: number;
       shape: Shape;
@@ -29,7 +29,7 @@ export type PersistableEvent =
   | {
       type: "undo";
       id: string;
-      canvasId: string;
+      chatId: string;
       userId: string;
       ts: number;
       targetId: string;
@@ -37,7 +37,7 @@ export type PersistableEvent =
   | {
       type: "clear";
       id: string;
-      canvasId: string;
+      chatId: string;
       userId: string;
       ts: number;
     };
@@ -46,13 +46,13 @@ export type ServerEvent =
   | PersistableEvent
   | {
       type: "cursor";
-      canvasId: string;
+      chatId: string;
       userId: string;
       userName: string;
       at: Coord;
     }
-  | { type: "join"; canvasId: string; userId: string; userName: string }
-  | { type: "leave"; canvasId: string; userId: string }
+  | { type: "join"; chatId: string; userId: string; userName: string }
+  | { type: "leave"; chatId: string; userId: string }
   | { type: "history"; events: PersistableEvent[] }
   | { type: "error"; code: string; msg: string };
 
@@ -127,7 +127,7 @@ export const PersistableEventSchema: z.ZodType<PersistableEvent> = z.discriminat
       .object({
         type: z.literal("draw"),
         id: z.string(),
-        canvasId: z.string(),
+        chatId: z.string(),
         userId: z.string(),
         ts: z.number(),
         shape: ShapeSchema,
@@ -137,7 +137,7 @@ export const PersistableEventSchema: z.ZodType<PersistableEvent> = z.discriminat
       .object({
         type: z.literal("undo"),
         id: z.string(),
-        canvasId: z.string(),
+        chatId: z.string(),
         userId: z.string(),
         ts: z.number(),
         targetId: z.string(),
@@ -147,7 +147,7 @@ export const PersistableEventSchema: z.ZodType<PersistableEvent> = z.discriminat
       .object({
         type: z.literal("clear"),
         id: z.string(),
-        canvasId: z.string(),
+        chatId: z.string(),
         userId: z.string(),
         ts: z.number(),
       })
@@ -162,7 +162,7 @@ export const ServerEventSchema: z.ZodType<ServerEvent> = z.discriminatedUnion(
       .object({
         type: z.literal("draw"),
         id: z.string(),
-        canvasId: z.string(),
+        chatId: z.string(),
         userId: z.string(),
         ts: z.number(),
         shape: ShapeSchema,
@@ -172,7 +172,7 @@ export const ServerEventSchema: z.ZodType<ServerEvent> = z.discriminatedUnion(
       .object({
         type: z.literal("undo"),
         id: z.string(),
-        canvasId: z.string(),
+        chatId: z.string(),
         userId: z.string(),
         ts: z.number(),
         targetId: z.string(),
@@ -182,7 +182,7 @@ export const ServerEventSchema: z.ZodType<ServerEvent> = z.discriminatedUnion(
       .object({
         type: z.literal("clear"),
         id: z.string(),
-        canvasId: z.string(),
+        chatId: z.string(),
         userId: z.string(),
         ts: z.number(),
       })
@@ -190,7 +190,7 @@ export const ServerEventSchema: z.ZodType<ServerEvent> = z.discriminatedUnion(
     z
       .object({
         type: z.literal("cursor"),
-        canvasId: z.string(),
+        chatId: z.string(),
         userId: z.string(),
         userName: z.string(),
         at: CoordSchema,
@@ -199,7 +199,7 @@ export const ServerEventSchema: z.ZodType<ServerEvent> = z.discriminatedUnion(
     z
       .object({
         type: z.literal("join"),
-        canvasId: z.string(),
+        chatId: z.string(),
         userId: z.string(),
         userName: z.string(),
       })
@@ -207,7 +207,7 @@ export const ServerEventSchema: z.ZodType<ServerEvent> = z.discriminatedUnion(
     z
       .object({
         type: z.literal("leave"),
-        canvasId: z.string(),
+        chatId: z.string(),
         userId: z.string(),
       })
       .strict(),

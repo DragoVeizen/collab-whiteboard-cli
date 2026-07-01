@@ -33,19 +33,19 @@ export class Room {
 export class RoomRegistry {
   private rooms: Map<string, Room> = new Map();
 
-  get(canvasId: string): Room {
-    let room = this.rooms.get(canvasId);
+  get(chatId: string): Room {
+    let room = this.rooms.get(chatId);
     if (!room) {
       room = new Room();
-      this.rooms.set(canvasId, room);
+      this.rooms.set(chatId, room);
     }
     return room;
   }
 
-  removeIfEmpty(canvasId: string): void {
-    const room = this.rooms.get(canvasId);
+  removeIfEmpty(chatId: string): void {
+    const room = this.rooms.get(chatId);
     if (room && room.size === 0) {
-      this.rooms.delete(canvasId);
+      this.rooms.delete(chatId);
     }
   }
 }

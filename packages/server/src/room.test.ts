@@ -17,7 +17,7 @@ const asWs = (s: FakeSocket): WebSocket => s as unknown as WebSocket;
 
 const joinEvent = (userId: string): ServerEvent => ({
   type: "join",
-  canvasId: "c1",
+  chatId: "c1",
   userId,
   userName: userId,
 });
@@ -74,14 +74,14 @@ describe("Room", () => {
 });
 
 describe("RoomRegistry", () => {
-  it("returns the same Room for the same canvasId", () => {
+  it("returns the same Room for the same chatId", () => {
     const reg = new RoomRegistry();
     const r1 = reg.get("c1");
     const r2 = reg.get("c1");
     expect(r1).toBe(r2);
   });
 
-  it("returns distinct Rooms for different canvasIds", () => {
+  it("returns distinct Rooms for different chatIds", () => {
     const reg = new RoomRegistry();
     const r1 = reg.get("c1");
     const r2 = reg.get("c2");

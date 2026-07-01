@@ -104,7 +104,7 @@ describe("ServerEventSchema", () => {
     const ev: ServerEvent = {
       type: "draw",
       id: "e1",
-      canvasId: "c1",
+      chatId: "c1",
       userId: "u1",
       ts: 1000,
       shape: { kind: "dot", at: { x: 0, y: 0 } },
@@ -115,7 +115,7 @@ describe("ServerEventSchema", () => {
   it("join server event parses", () => {
     const ev: ServerEvent = {
       type: "join",
-      canvasId: "c1",
+      chatId: "c1",
       userId: "u1",
       userName: "vansh",
     };
@@ -129,7 +129,7 @@ describe("ServerEventSchema", () => {
         {
           type: "draw",
           id: "e1",
-          canvasId: "c1",
+          chatId: "c1",
           userId: "u1",
           ts: 100,
           shape: { kind: "dot", at: { x: 1, y: 1 } },
@@ -153,7 +153,7 @@ describe("ServerEventSchema", () => {
       ServerEventSchema.parse({
         type: "draw",
         id: "e1",
-        canvasId: "c1",
+        chatId: "c1",
         userId: "u1",
         shape: { kind: "dot", at: { x: 0, y: 0 } },
       }),

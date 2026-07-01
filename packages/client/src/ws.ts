@@ -6,7 +6,7 @@ import type { ClientMessage, ServerEvent } from "@whiteboard/shared";
 
 export type WsClientOpts = {
   url: string;
-  canvasId: string;
+  chatId: string;
   userId: string;
   userName: string;
   onEvent: (e: ServerEvent) => void;
@@ -23,8 +23,8 @@ export class WsClient {
 
   connect(): void {
     this.opts.onStatusChange?.("connecting");
-    const { url, canvasId, userId, userName } = this.opts;
-    const wsUrl = `${url}?canvasId=${encodeURIComponent(canvasId)}&userId=${encodeURIComponent(
+    const { url, chatId, userId, userName } = this.opts;
+    const wsUrl = `${url}?chatId=${encodeURIComponent(chatId)}&userId=${encodeURIComponent(
       userId,
     )}&name=${encodeURIComponent(userName)}`;
     const ws = new WebSocket(wsUrl);

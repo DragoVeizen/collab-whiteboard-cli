@@ -1,14 +1,14 @@
 import React from "react";
 import { Box, Text } from "ink";
-import type { CanvasState } from "./state.js";
+import type { ChatState } from "./state.js";
 import type { Mode } from "./input.js";
 import type { Coord } from "@whiteboard/shared";
 
 export type StatusBarProps = {
-  canvasId: string;
+  chatId: string;
   mode: Mode;
   cursor: Coord;
-  state: CanvasState;
+  state: ChatState;
   ownUserId: string;
   wsStatus: "connecting" | "open" | "closed";
 };
@@ -31,14 +31,14 @@ function colorFor(userId: string): (typeof PALETTE)[number] {
 }
 
 export function StatusBar(props: StatusBarProps): React.ReactElement {
-  const { canvasId, mode, cursor, state, ownUserId, wsStatus } = props;
+  const { chatId, mode, cursor, state, ownUserId, wsStatus } = props;
   const others = [...state.presence.entries()].filter(
     ([uid]) => uid !== ownUserId,
   );
   return (
     <Box flexDirection="column">
       <Text>
-        canvas: <Text bold>{canvasId}</Text> · ws:{" "}
+        canvas: <Text bold>{chatId}</Text> · ws:{" "}
         <Text color={wsStatus === "open" ? "green" : "yellow"}>
           {wsStatus}
         </Text>{" "}

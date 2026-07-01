@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Box, useInput, useApp } from "ink";
 import { randomUUID } from "node:crypto";
 import { WsClient } from "./ws.js";
-import { initialState, reduce, type CanvasState } from "./state.js";
+import { initialState, reduce, type ChatState } from "./state.js";
 import {
   initialInputState,
   reduceInput,
@@ -12,7 +12,7 @@ import { Canvas } from "./canvas.js";
 import { StatusBar } from "./statusbar.js";
 
 export type AppProps = {
-  canvasId: string;
+  chatId: string;
   userId: string;
   userName: string;
   wsUrl: string;
@@ -21,8 +21,8 @@ export type AppProps = {
 const VIEWPORT = { width: 60, height: 20 };
 
 export function App(props: AppProps): React.ReactElement {
-  const { canvasId, userId, userName, wsUrl } = props;
-  const [canvasState, setCanvasState] = useState<CanvasState>(initialState());
+  const { chatId, userId, userName, wsUrl } = props;
+  const [canvasState, setChatState] = useState<ChatState>(initialState());
   const [inputState, setInputState] = useState<InputState>(
     initialInputState(VIEWPORT.width, VIEWPORT.height),
   );
@@ -35,13 +35,13 @@ export function App(props: AppProps): React.ReactElement {
     () =>
       new WsClient({
         url: wsUrl,
-        canvasId,
+        chatId,
         userId,
         userName,
-        onEvent: (e) => setCanvasState((s) => reduce(s, e)),
+        onEvent: (e) => setChatState((s) => reduce(s, e)),
         onStatusChange: setWsStatus,
       }),
-    [wsUrl, canvasId, userId, userName],
+    [wsUrl, chatId, userId, userName],
   );
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export function App(props: AppProps): React.ReactElement {
         ownUserId={userId}
       />
       <StatusBar
-        canvasId={canvasId}
+        chatId={chatId}
         mode={inputState.mode}
         cursor={inputState.cursor}
         state={canvasState}

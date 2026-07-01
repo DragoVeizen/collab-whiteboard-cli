@@ -8,7 +8,7 @@
 import { WebSocket } from "ws";
 
 const WS_URL = process.env.WS_URL ?? "ws://localhost:8787";
-const CANVAS_ID = `smoke-${Date.now()}`;
+const CHAT_ID = `smoke-${Date.now()}`;
 
 type AnyEvent = Record<string, unknown> & { type: string };
 
@@ -22,7 +22,7 @@ type Client = {
 };
 
 async function connect(userId: string, name: string): Promise<Client> {
-  const url = `${WS_URL}?canvasId=${encodeURIComponent(CANVAS_ID)}&userId=${encodeURIComponent(userId)}&name=${encodeURIComponent(name)}`;
+  const url = `${WS_URL}?chatId=${encodeURIComponent(CHAT_ID)}&userId=${encodeURIComponent(userId)}&name=${encodeURIComponent(name)}`;
   const ws = new WebSocket(url);
   const messages: AnyEvent[] = [];
   type Pending = {
@@ -105,7 +105,7 @@ async function test(name: string, fn: () => Promise<void>): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  console.log(`smoke on canvas: ${CANVAS_ID}\n`);
+  console.log(`smoke on canvas: ${CHAT_ID}\n`);
 
   const a = await connect("user-a", "A");
   const b = await connect("user-b", "B");

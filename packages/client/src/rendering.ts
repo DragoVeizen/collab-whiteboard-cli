@@ -1,5 +1,5 @@
 import type { Shape } from "@whiteboard/shared";
-import type { CanvasState } from "./state.js";
+import type { ChatState } from "./state.js";
 
 export type Cell = { x: number; y: number; char: string };
 
@@ -152,7 +152,7 @@ export function rasterizeShape(shape: Shape): Cell[] {
 export type ColoredCell = { char: string; userId?: string };
 
 export function composeColoredGrid(
-  state: CanvasState,
+  state: ChatState,
   viewport: Viewport,
 ): ColoredCell[][] {
   const { width, height } = viewport;
@@ -176,7 +176,7 @@ export function composeColoredGrid(
 }
 
 export function composeGrid(
-  state: CanvasState,
+  state: ChatState,
   viewport: Viewport,
 ): string[][] {
   return composeColoredGrid(state, viewport).map((row) =>

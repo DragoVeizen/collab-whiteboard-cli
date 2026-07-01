@@ -27,18 +27,18 @@ afterAll(async () => {
 beforeEach(async () => {
   const db = cleanupClient.db(TEST_DB);
   await db.collection("events").deleteMany({});
-  await db.collection("canvases").deleteMany({});
+  await db.collection("chats").deleteMany({});
 });
 
 const drawEvent = (
   id: string,
-  canvasId: string,
+  chatId: string,
   ts: number,
   userId = "u1",
 ): PersistableEvent => ({
   type: "draw",
   id,
-  canvasId,
+  chatId,
   userId,
   ts,
   shape: { kind: "dot", at: { x: 1, y: 1 } },
@@ -60,19 +60,19 @@ describe("Store persistence", () => {
     expect(history.map((e) => e.id)).toEqual(["e1", "e2", "e3"]);
   });
 
-  it("loadHistory filters by canvasId", async () => {
+  it("loadHistory filters by chatId", async () => {
     await store.appendEvent(drawEvent("e1", "cx", 100));
     await store.appendEvent(drawEvent("e2", "cy", 200));
     const history = await store.loadHistory("cx");
     expect(history).toHaveLength(1);
-    expect(history[0]?.canvasId).toBe("cx");
+    expect(history[0]?.chatId).toBe("cx");
   });
 
-  it("upsertCanvas creates and updates metadata", async () => {
-    await store.upsertCanvas("c1", 100);
-    await store.upsertCanvas("c1", 200);
+  it("upsertChat creates and updates metadata", async () => {
+    await store.upsertChat("c1", 100);
+    await store.upsertChat("c1", 200);
     const db = cleanupClient.db(TEST_DB);
-    const doc = await db.collection("canvases").findOne({ _id: "c1" as unknown as never });
+    const doc = await db.collection("chats").findOne({ _id: "c1" as unknown as never });
     expect(doc).not.toBeNull();
     expect(doc?.createdAt).toBe(100);
     expect(doc?.lastActivityAt).toBe(200);
@@ -90,7 +90,7 @@ describe("Store persistence", () => {
     expect(found).toBeNull();
   });
 
-  it("findEventById scopes to canvasId", async () => {
+  it("findEventById scopes to chatId", async () => {
     await store.appendEvent(drawEvent("e1", "cx", 100));
     const found = await store.findEventById("cy", "e1");
     expect(found).toBeNull();

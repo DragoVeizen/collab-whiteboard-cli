@@ -9,7 +9,7 @@ import type { Store } from "./store.js";
 
 export type Session = {
   ws: WebSocket;
-  canvasId: string;
+  chatId: string;
   userId: string;
   userName: string;
 };
@@ -26,25 +26,25 @@ export async function handleConnect(
   store: Store,
   now: () => number,
 ): Promise<void> {
-  const { ws, canvasId, userId, userName } = session;
+  const { ws, chatId, userId, userName } = session;
 
   // Register room membership BEFORE any await. Otherwise a broadcast fired
   // during our mongo round-trips would miss this socket. The reducer is
   // idempotent on persisted events (Map.set by id, Set.add), so a client
   // seeing live events before its history is safe.
-  const room = registry.get(canvasId);
+  const room = registry.get(chatId);
   room.add(ws);
   const joinEvent: ServerEvent = {
     type: "join",
-    canvasId,
+    chatId,
     userId,
     userName,
   };
   room.broadcast(joinEvent);
 
   const nowTs = now();
-  await store.upsertCanvas(canvasId, nowTs);
-  const history = await store.loadHistory(canvasId);
+  await store.upsertChat(chatId, nowTs);
+  const history = await store.loadHistory(chatId);
   safeSend(ws, { type: "history", events: history });
 }
 
@@ -55,7 +55,7 @@ export async function handleMessage(
   store: Store,
   now: () => number,
 ): Promise<void> {
-  const { ws, canvasId, userId, userName } = session;
+  const { ws, chatId, userId, userName } = session;
 
   let parsed: unknown;
   try {
@@ -73,14 +73,14 @@ export async function handleMessage(
 
   const msg = result.data;
   const ts = now();
-  const room = registry.get(canvasId);
+  const room = registry.get(chatId);
 
   switch (msg.type) {
     case "draw": {
       const event: PersistableEvent = {
         type: "draw",
         id: msg.id,
-        canvasId,
+        chatId,
         userId,
         ts,
         shape: msg.shape,
@@ -95,12 +95,12 @@ export async function handleMessage(
         });
         return;
       }
-      await store.upsertCanvas(canvasId, ts);
+      await store.upsertChat(chatId, ts);
       room.broadcast(event);
       break;
     }
     case "undo": {
-      const target = await store.findEventById(canvasId, msg.targetId);
+      const target = await store.findEventById(chatId, msg.targetId);
       if (target && target.userId !== userId) {
         safeSend(ws, {
           type: "error",
@@ -112,13 +112,13 @@ export async function handleMessage(
       const event: PersistableEvent = {
         type: "undo",
         id: msg.id,
-        canvasId,
+        chatId,
         userId,
         ts,
         targetId: msg.targetId,
       };
       await store.appendEvent(event);
-      await store.upsertCanvas(canvasId, ts);
+      await store.upsertChat(chatId, ts);
       room.broadcast(event);
       break;
     }
@@ -126,19 +126,19 @@ export async function handleMessage(
       const event: PersistableEvent = {
         type: "clear",
         id: msg.id,
-        canvasId,
+        chatId,
         userId,
         ts,
       };
       await store.appendEvent(event);
-      await store.upsertCanvas(canvasId, ts);
+      await store.upsertChat(chatId, ts);
       room.broadcast(event);
       break;
     }
     case "cursor": {
       const event: ServerEvent = {
         type: "cursor",
-        canvasId,
+        chatId,
         userId,
         userName,
         at: msg.at,
@@ -153,14 +153,14 @@ export function handleDisconnect(
   session: Session,
   registry: RoomRegistry,
 ): void {
-  const { ws, canvasId, userId } = session;
-  const room = registry.get(canvasId);
+  const { ws, chatId, userId } = session;
+  const room = registry.get(chatId);
   room.remove(ws);
   const leaveEvent: ServerEvent = {
     type: "leave",
-    canvasId,
+    chatId,
     userId,
   };
   room.broadcast(leaveEvent);
-  registry.removeIfEmpty(canvasId);
+  registry.removeIfEmpty(chatId);
 }

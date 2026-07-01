@@ -26,8 +26,8 @@ export class Store {
     await this.client.connect();
     this.db = this.client.db(this.dbName);
     this.events = this.db.collection<PersistableEvent>("events");
-    this.canvases = this.db.collection<CanvasDoc>("canvases");
-    await this.events.createIndex({ canvasId: 1, ts: 1 });
+    this.canvases = this.db.collection<CanvasDoc>("chats");
+    await this.events.createIndex({ chatId: 1, ts: 1 });
   }
 
   async close(): Promise<void> {
@@ -47,9 +47,9 @@ export class Store {
     return this.canvases;
   }
 
-  async upsertCanvas(canvasId: string, now: number): Promise<void> {
+  async upsertChat(chatId: string, now: number): Promise<void> {
     await this.requireCanvases().updateOne(
-      { _id: canvasId },
+      { _id: chatId },
       {
         $set: { lastActivityAt: now },
         $setOnInsert: { createdAt: now },
@@ -62,9 +62,9 @@ export class Store {
     await this.requireEvents().insertOne(event);
   }
 
-  async loadHistory(canvasId: string): Promise<PersistableEvent[]> {
+  async loadHistory(chatId: string): Promise<PersistableEvent[]> {
     const docs = await this.requireEvents()
-      .find({ canvasId })
+      .find({ chatId })
       .sort({ ts: 1 })
       .toArray();
     // strip the mongo-generated _id — clients only receive the wire shape.
@@ -72,10 +72,10 @@ export class Store {
   }
 
   async findEventById(
-    canvasId: string,
+    chatId: string,
     id: string,
   ): Promise<PersistableEvent | null> {
-    const doc = await this.requireEvents().findOne({ canvasId, id });
+    const doc = await this.requireEvents().findOne({ chatId, id });
     if (!doc) return null;
     const { _id, ...rest } = doc;
     return rest as PersistableEvent;

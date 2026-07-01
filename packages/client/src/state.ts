@@ -2,7 +2,7 @@ import type { Coord, Shape, ServerEvent } from "@whiteboard/shared";
 
 export type Presence = { name: string; cursor: Coord };
 
-export type CanvasState = {
+export type ChatState = {
   shapes: Map<string, Shape>;
   // Parallel to shapes: eventId → userId of whoever drew it.
   // Used by the renderer to color shapes by author.
@@ -12,7 +12,7 @@ export type CanvasState = {
   presence: Map<string, Presence>;
 };
 
-export function initialState(): CanvasState {
+export function initialState(): ChatState {
   return {
     shapes: new Map(),
     shapeAuthors: new Map(),
@@ -22,7 +22,7 @@ export function initialState(): CanvasState {
   };
 }
 
-export function reduce(state: CanvasState, event: ServerEvent): CanvasState {
+export function reduce(state: ChatState, event: ServerEvent): ChatState {
   switch (event.type) {
     case "draw": {
       const shapes = new Map(state.shapes);

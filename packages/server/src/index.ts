@@ -36,15 +36,15 @@ async function main(): Promise<void> {
 
   wss.on("connection", (ws: WebSocket, req) => {
     const u = new URL(req.url ?? "", "ws://x");
-    const canvasId = u.searchParams.get("canvasId") ?? "";
+    const chatId = u.searchParams.get("chatId") ?? "";
     const userId = u.searchParams.get("userId") ?? "";
     const userName = u.searchParams.get("name") ?? "anon";
-    if (!canvasId || !userId) {
-      ws.close(1008, "missing canvasId or userId");
+    if (!chatId || !userId) {
+      ws.close(1008, "missing chatId or userId");
       return;
     }
-    console.log(`[conn] canvas=${canvasId} userId=${userId} name=${userName}`);
-    const session: Session = { ws, canvasId, userId, userName };
+    console.log(`[conn] canvas=${chatId} userId=${userId} name=${userName}`);
+    const session: Session = { ws, chatId, userId, userName };
     handleConnect(session, registry, store, () => Date.now()).catch(
       (err) => {
         console.error("connect error:", err);

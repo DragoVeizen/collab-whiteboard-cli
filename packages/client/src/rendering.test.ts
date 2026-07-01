@@ -13,7 +13,7 @@ import type { PersistableEvent, Shape } from "@whiteboard/shared";
 const draw = (id: string, ts: number, shape: Shape): PersistableEvent => ({
   type: "draw",
   id,
-  canvasId: "c1",
+  chatId: "c1",
   userId: "u1",
   ts,
   shape,
@@ -185,7 +185,7 @@ describe("composeGrid", () => {
     state = reduce(state, {
       type: "undo",
       id: "u1",
-      canvasId: "c1",
+      chatId: "c1",
       userId: "u1",
       ts: 101,
       targetId: "e1",

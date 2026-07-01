@@ -10,7 +10,7 @@ const draw = (
 ): PersistableEvent => ({
   type: "draw",
   id,
-  canvasId: "c1",
+  chatId: "c1",
   userId,
   ts,
   shape,
@@ -23,7 +23,7 @@ const undo = (
 ): PersistableEvent => ({
   type: "undo",
   id,
-  canvasId: "c1",
+  chatId: "c1",
   userId,
   ts,
   targetId,
@@ -31,26 +31,26 @@ const undo = (
 const clear = (id: string, userId: string, ts: number): PersistableEvent => ({
   type: "clear",
   id,
-  canvasId: "c1",
+  chatId: "c1",
   userId,
   ts,
 });
 const cursor = (userId: string, x: number, y: number): ServerEvent => ({
   type: "cursor",
-  canvasId: "c1",
+  chatId: "c1",
   userId,
   userName: userId,
   at: { x, y },
 });
 const join = (userId: string): ServerEvent => ({
   type: "join",
-  canvasId: "c1",
+  chatId: "c1",
   userId,
   userName: userId,
 });
 const leave = (userId: string): ServerEvent => ({
   type: "leave",
-  canvasId: "c1",
+  chatId: "c1",
   userId,
 });
 const dot = (x: number, y: number): Shape => ({ kind: "dot", at: { x, y } });

@@ -6,12 +6,12 @@ import {
   type Viewport,
 } from "./rendering.js";
 import { Box, Text } from "ink";
-import type { CanvasState } from "./state.js";
+import type { ChatState } from "./state.js";
 import type { Coord, Shape } from "@whiteboard/shared";
 import type { Mode } from "./input.js";
 
 export type CanvasProps = {
-  state: CanvasState;
+  state: ChatState;
   ownCursor: Coord;
   anchor: Coord | null;
   mode: Mode;

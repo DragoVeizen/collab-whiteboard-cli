@@ -46,14 +46,14 @@ beforeAll(async () => {
 
   wss.on("connection", (ws, req) => {
     const u = new URL(req.url ?? "", "ws://x");
-    const canvasId = u.searchParams.get("canvasId") ?? "";
+    const chatId = u.searchParams.get("chatId") ?? "";
     const userId = u.searchParams.get("userId") ?? "";
     const userName = u.searchParams.get("name") ?? "anon";
-    if (!canvasId || !userId) {
+    if (!chatId || !userId) {
       ws.close(1008);
       return;
     }
-    const session: Session = { ws, canvasId, userId, userName };
+    const session: Session = { ws, chatId, userId, userName };
     handleConnect(session, registry, store, () => Date.now()).catch(() => {
       ws.close(1011);
     });
@@ -80,7 +80,7 @@ afterAll(async () => {
 beforeEach(async () => {
   const db = cleanupClient.db(TEST_DB);
   await db.collection("events").deleteMany({});
-  await db.collection("canvases").deleteMany({});
+  await db.collection("chats").deleteMany({});
 });
 
 type Conn = {
@@ -93,12 +93,12 @@ type Conn = {
 };
 
 async function connect(
-  canvasId: string,
+  chatId: string,
   userId: string,
   name = userId,
 ): Promise<Conn> {
   const ws = new WebSocket(
-    `ws://localhost:${serverPort}?canvasId=${canvasId}&userId=${userId}&name=${name}`,
+    `ws://localhost:${serverPort}?chatId=${chatId}&userId=${userId}&name=${name}`,
   );
   const messages: ServerEvent[] = [];
   type Pending = {
@@ -180,7 +180,7 @@ describe("handlers integration", () => {
     expect(received.type).toBe("draw");
     if (received.type === "draw") {
       expect(received.userId).toBe("ua");
-      expect(received.canvasId).toBe("cx1");
+      expect(received.chatId).toBe("cx1");
     }
     await closeAll(a, b);
   });

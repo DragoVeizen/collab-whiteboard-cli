@@ -1,8 +1,9 @@
 import React from "react";
 import { Box, Text } from "ink";
 import type { ChatState } from "./state.js";
-import type { Mode } from "./input.js";
+import type { ActiveTab, Mode } from "./input.js";
 import type { Coord } from "@whiteboard/shared";
+import { colorFor } from "./colors.js";
 
 export type StatusBarProps = {
   chatId: string;
@@ -11,34 +12,24 @@ export type StatusBarProps = {
   state: ChatState;
   ownUserId: string;
   wsStatus: "connecting" | "open" | "closed";
+  activeTab: ActiveTab;
 };
 
-const PALETTE = [
-  "cyan",
-  "magenta",
-  "yellow",
-  "green",
-  "blue",
-  "red",
-] as const;
-
-function colorFor(userId: string): (typeof PALETTE)[number] {
-  let h = 0;
-  for (let i = 0; i < userId.length; i++) {
-    h = (h * 31 + userId.charCodeAt(i)) | 0;
-  }
-  return PALETTE[Math.abs(h) % PALETTE.length]!;
-}
-
 export function StatusBar(props: StatusBarProps): React.ReactElement {
-  const { chatId, mode, cursor, state, ownUserId, wsStatus } = props;
+  const { chatId, mode, cursor, state, ownUserId, wsStatus, activeTab } = props;
   const others = [...state.presence.entries()].filter(
     ([uid]) => uid !== ownUserId,
   );
+  const tabLabel =
+    activeTab === "canvas" ? "CANVAS" : "CHAT";
   return (
     <Box flexDirection="column">
       <Text>
-        canvas: <Text bold>{chatId}</Text> · ws:{" "}
+        chat: <Text bold>{chatId}</Text> · view:{" "}
+        <Text bold color="cyan">
+          {tabLabel}
+        </Text>{" "}
+        · ws:{" "}
         <Text color={wsStatus === "open" ? "green" : "yellow"}>
           {wsStatus}
         </Text>{" "}
@@ -58,10 +49,17 @@ export function StatusBar(props: StatusBarProps): React.ReactElement {
           </Text>
         ))}
       </Text>
-      <Text dimColor>
-        [1]dot [2]circle [3]line [4]square · hjkl move · HJKL x5 · space
-        place/anchor · esc cancel · u undo · x clear · q quit
-      </Text>
+      {activeTab === "canvas" ? (
+        <Text dimColor>
+          [1]dot [2]circle [3]line [4]square · hjkl move · HJKL x5 · space
+          place/anchor · esc cancel · u undo · x clear · tab chat · q quit
+        </Text>
+      ) : (
+        <Text dimColor>
+          type to compose · enter send · backspace delete · esc clear · tab
+          canvas · q quit
+        </Text>
+      )}
     </Box>
   );
 }

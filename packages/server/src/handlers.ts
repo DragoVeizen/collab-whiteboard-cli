@@ -1,4 +1,5 @@
 import { WebSocket } from "ws";
+import { randomUUID } from "node:crypto";
 import {
   ClientMessageSchema,
   type PersistableEvent,
@@ -143,6 +144,53 @@ export async function handleMessage(
         userName,
         at: msg.at,
       };
+      room.broadcast(event);
+      break;
+    }
+    case "chatMessage": {
+      const event: PersistableEvent = {
+        type: "chatMessage",
+        id: msg.id,
+        chatId,
+        userId,
+        userName,
+        ts,
+        text: msg.text,
+      };
+      try {
+        await store.appendEvent(event);
+      } catch (err) {
+        safeSend(ws, {
+          type: "error",
+          code: "persist_failed",
+          msg: String(err),
+        });
+        return;
+      }
+      await store.upsertChat(chatId, ts);
+      room.broadcast(event);
+      break;
+    }
+    case "read": {
+      const event: PersistableEvent = {
+        type: "read",
+        // Server generates a unique id for the receipt itself.
+        id: randomUUID(),
+        chatId,
+        userId,
+        ts,
+        messageId: msg.messageId,
+      };
+      try {
+        await store.appendEvent(event);
+      } catch (err) {
+        safeSend(ws, {
+          type: "error",
+          code: "persist_failed",
+          msg: String(err),
+        });
+        return;
+      }
       room.broadcast(event);
       break;
     }

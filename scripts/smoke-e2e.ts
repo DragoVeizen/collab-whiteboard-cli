@@ -226,6 +226,85 @@ async function main(): Promise<void> {
     },
   );
 
+  // --- Chat + read receipts ---------------------------------------------
+
+  const p = await connect("user-p", "Pat");
+  const q = await connect("user-q", "Quinn");
+
+  await test("chat message from Pat broadcasts to Quinn", async () => {
+    p.ws.send(
+      JSON.stringify({ type: "chatMessage", id: "cm1", text: "hey Q" }),
+    );
+    const evt = await q.waitFor(
+      (e) => e.type === "chatMessage" && e["id"] === "cm1",
+    );
+    if (evt["userId"] !== "user-p") throw new Error("wrong sender userId");
+    if (evt["userName"] !== "Pat") throw new Error("wrong sender userName");
+    if (evt["text"] !== "hey Q") throw new Error("wrong text");
+    if (typeof evt["ts"] !== "number") throw new Error("missing server ts");
+  });
+
+  await test("chat message echoes to the sender", async () => {
+    await p.waitFor((e) => e.type === "chatMessage" && e["id"] === "cm1");
+  });
+
+  await test("Pat cannot forge ts on outbound chatMessage", async () => {
+    p.ws.send(
+      JSON.stringify({
+        type: "chatMessage",
+        id: "cm-bad",
+        text: "sneaky",
+        ts: 999,
+      }),
+    );
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("socket did not close on forged ts")),
+        3000,
+      );
+      p.ws.once("close", () => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+  });
+
+  // p is closed now; use a fresh sender for the read receipt tests.
+  const r = await connect("user-r", "Rae");
+
+  await test("Quinn's read receipt broadcasts back to Rae", async () => {
+    r.ws.send(
+      JSON.stringify({ type: "chatMessage", id: "cm2", text: "hi Q" }),
+    );
+    await q.waitFor((e) => e.type === "chatMessage" && e["id"] === "cm2");
+    q.ws.send(JSON.stringify({ type: "read", messageId: "cm2" }));
+    const evt = await r.waitFor(
+      (e) => e.type === "read" && e["messageId"] === "cm2",
+    );
+    if (evt["userId"] !== "user-q") throw new Error("wrong reader userId");
+  });
+
+  await test(
+    "chat + draw share the same room — history has both",
+    async () => {
+      await closeAll(q, r);
+      const s = await connect("user-s", "Sam");
+      const hist = await s.waitFor((e) => e.type === "history");
+      const events = hist["events"] as AnyEvent[];
+      const hasChatMsg = events.some(
+        (e) => e.type === "chatMessage" && e["id"] === "cm1",
+      );
+      const hasReadReceipt = events.some(
+        (e) => e.type === "read" && e["messageId"] === "cm2",
+      );
+      if (!hasChatMsg) throw new Error("chat message missing from history");
+      if (!hasReadReceipt) {
+        throw new Error("read receipt missing from history");
+      }
+      await closeAll(s);
+    },
+  );
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }

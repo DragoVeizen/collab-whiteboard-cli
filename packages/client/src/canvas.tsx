@@ -9,6 +9,8 @@ import { Box, Text } from "ink";
 import type { ChatState } from "./state.js";
 import type { Coord, Shape } from "@whiteboard/shared";
 import type { Mode } from "./input.js";
+import { colorFor } from "./colors.js";
+import { envelopeCell, type Envelope } from "./envelope.js";
 
 export type CanvasProps = {
   state: ChatState;
@@ -17,24 +19,8 @@ export type CanvasProps = {
   mode: Mode;
   viewport: Viewport;
   ownUserId: string;
+  envelopes: Envelope[];
 };
-
-const PALETTE = [
-  "cyan",
-  "magenta",
-  "yellow",
-  "green",
-  "blue",
-  "red",
-] as const;
-
-function colorFor(userId: string): (typeof PALETTE)[number] {
-  let h = 0;
-  for (let i = 0; i < userId.length; i++) {
-    h = (h * 31 + userId.charCodeAt(i)) | 0;
-  }
-  return PALETTE[Math.abs(h) % PALETTE.length]!;
-}
 
 function ghostShape(
   mode: Mode,
@@ -58,7 +44,8 @@ function ghostShape(
 }
 
 export function Canvas(props: CanvasProps): React.ReactElement {
-  const { state, ownCursor, anchor, mode, viewport, ownUserId } = props;
+  const { state, ownCursor, anchor, mode, viewport, ownUserId, envelopes } =
+    props;
   const grid = composeColoredGrid(state, viewport);
   const overlayed: ColoredCell[][] = grid.map((row) =>
     row.map((c) => ({ ...c })),
@@ -91,7 +78,18 @@ export function Canvas(props: CanvasProps): React.ReactElement {
     ghostCells.add(`${anchor.x},${anchor.y}`);
   }
 
-  // 3. Other users' cursors — their initial in the peer color.
+  // 3. Envelopes in flight — ✉ glyph at each envelope's current cell,
+  //    colored by sender. Between ghost and cursors so live cursors still win.
+  const envelopeCells = new Map<string, string>(); // "x,y" → senderId
+  for (const env of envelopes) {
+    const at = envelopeCell(env);
+    if (at.x < 0 || at.x >= viewport.width) continue;
+    if (at.y < 0 || at.y >= viewport.height) continue;
+    overlayed[at.y]![at.x] = { char: "✉" };
+    envelopeCells.set(`${at.x},${at.y}`, env.senderId);
+  }
+
+  // 4. Other users' cursors — their initial in the peer color.
   const otherCursors = new Map<string, string>();
   for (const [uid, presence] of state.presence) {
     if (uid === ownUserId) continue;
@@ -103,7 +101,7 @@ export function Canvas(props: CanvasProps): React.ReactElement {
     }
   }
 
-  // 4. Own cursor wins.
+  // 5. Own cursor wins.
   if (
     ownCursor.y >= 0 &&
     ownCursor.y < viewport.height &&
@@ -129,6 +127,14 @@ export function Canvas(props: CanvasProps): React.ReactElement {
             if (otherColor) {
               return (
                 <Text key={x} color={otherColor}>
+                  {cell.char}
+                </Text>
+              );
+            }
+            const envSender = envelopeCells.get(`${x},${y}`);
+            if (envSender) {
+              return (
+                <Text key={x} color={colorFor(envSender)} bold>
                   {cell.char}
                 </Text>
               );

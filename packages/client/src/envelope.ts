@@ -1,8 +1,7 @@
-// M6 stub: envelope animation state. Impls throw — M6 impl fills them in.
-// Envelopes are client-only, ephemeral state. When a chatMessage arrives from
-// a peer while the canvas view is active, an envelope is spawned at the
-// sender's last-known cursor and animates toward the chat-corner of the
-// viewport.
+// Envelope animation state. Envelopes are client-only, ephemeral.
+// When a chatMessage arrives from a peer while the canvas view is
+// active, an envelope is spawned at the sender's last-known cursor
+// and animates toward the chat-corner of the viewport.
 
 import type { Coord } from "@whiteboard/shared";
 
@@ -14,12 +13,24 @@ export type Envelope = {
   senderId: string;
 };
 
-// Advance each envelope's progress; drop ones that have completed.
-export function stepEnvelopes(_envs: Envelope[], _dt: number): Envelope[] {
-  throw new Error("M6 not implemented: stepEnvelopes");
+// Fraction of the animation completed per 100ms of real time.
+// 0.15 → ~660ms total flight, quick but visible.
+const SPEED_PER_100MS = 0.15;
+
+export function stepEnvelopes(envs: Envelope[], dtMs: number): Envelope[] {
+  const delta = SPEED_PER_100MS * (dtMs / 100);
+  const next: Envelope[] = [];
+  for (const e of envs) {
+    const progress = e.progress + delta;
+    if (progress < 1) next.push({ ...e, progress });
+  }
+  return next;
 }
 
-// Linear interpolation of the envelope's current cell.
-export function envelopeCell(_env: Envelope): Coord {
-  throw new Error("M6 not implemented: envelopeCell");
+export function envelopeCell(env: Envelope): Coord {
+  const t = Math.max(0, Math.min(1, env.progress));
+  return {
+    x: Math.round(env.from.x + (env.to.x - env.from.x) * t),
+    y: Math.round(env.from.y + (env.to.y - env.from.y) * t),
+  };
 }

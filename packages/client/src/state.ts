@@ -85,10 +85,23 @@ export function reduce(state: ChatState, event: ServerEvent): ChatState {
       return { ...state, presence };
     }
     case "chatMessage": {
-      throw new Error("M6 not implemented: reduce chatMessage");
+      const messages = new Map(state.messages);
+      messages.set(event.id, {
+        id: event.id,
+        userId: event.userId,
+        userName: event.userName,
+        ts: event.ts,
+        text: event.text,
+      });
+      return { ...state, messages };
     }
     case "read": {
-      throw new Error("M6 not implemented: reduce read");
+      const readReceipts = new Map(state.readReceipts);
+      const existing = readReceipts.get(event.messageId);
+      const updated = new Set(existing ?? []);
+      updated.add(event.userId);
+      readReceipts.set(event.messageId, updated);
+      return { ...state, readReceipts };
     }
     case "history": {
       return event.events.reduce(reduce, state);

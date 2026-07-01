@@ -175,9 +175,31 @@ export function reduceInput(
 }
 
 function reduceChatInput(
-  _state: InputState,
-  _key: string,
-  _idGen: () => string,
+  state: InputState,
+  key: string,
+  idGen: () => string,
 ): InputResult {
-  throw new Error("M6 not implemented: reduceChatInput");
+  if (key === "enter") {
+    if (state.chatDraft.length === 0) return noEmit(state);
+    const text = state.chatDraft;
+    return {
+      state: { ...state, chatDraft: "" },
+      emit: { type: "chatMessage", id: idGen(), text },
+      quit: false,
+    };
+  }
+  if (key === "backspace") {
+    return noEmit({ ...state, chatDraft: state.chatDraft.slice(0, -1) });
+  }
+  if (key === "escape") {
+    return noEmit({ ...state, chatDraft: "" });
+  }
+  // Any single printable character appends to draft. Ink passes multi-char
+  // sequences (e.g. arrow keys, function keys) as key.<name>; those hit the
+  // main mapper in app.tsx and never reach here as a single-char key. So
+  // filtering by length === 1 is enough.
+  if (key.length === 1) {
+    return noEmit({ ...state, chatDraft: state.chatDraft + key });
+  }
+  return noEmit(state);
 }

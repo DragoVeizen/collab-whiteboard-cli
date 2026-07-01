@@ -118,18 +118,18 @@ export function Canvas(props: CanvasProps): React.ReactElement {
         <Text key={y}>
           {row.map((cell, x) => {
             if (x === ownCursor.x && y === ownCursor.y) {
-              // Own cursor: bright yellow block on inverse.
+              // Own cursor — plain bright yellow. No inverse/bold/backgroundColor
+              // tricks; some terminals swallow those and end up rendering nothing.
               return (
-                <Text key={x} color="yellow" inverse bold>
+                <Text key={x} color="yellow">
                   {cell}
                 </Text>
               );
             }
             const otherColor = otherCursors.get(`${x},${y}`);
             if (otherColor) {
-              // Remote cursor: user's initial, inverse on their color, bold.
               return (
-                <Text key={x} color={otherColor} inverse bold>
+                <Text key={x} color={otherColor}>
                   {cell}
                 </Text>
               );

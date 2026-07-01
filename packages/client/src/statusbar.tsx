@@ -46,12 +46,12 @@ export function StatusBar(props: StatusBarProps): React.ReactElement {
         {cursor.x}, {cursor.y})
       </Text>
       <Text>
-        <Text color="yellow" inverse bold> </Text> you
+        <Text color="yellow">█</Text> you
         {others.length > 0 ? " · " : ""}
         {others.map(([uid, p], i) => (
           <Text key={uid}>
             {i > 0 ? " · " : ""}
-            <Text color={colorFor(uid)} inverse bold>
+            <Text color={colorFor(uid)}>
               {(p.name?.[0] ?? "?").toUpperCase()}
             </Text>{" "}
             <Text color={colorFor(uid)}>{p.name}</Text>

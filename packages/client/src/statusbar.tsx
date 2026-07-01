@@ -13,18 +13,50 @@ export type StatusBarProps = {
   wsStatus: "connecting" | "open" | "closed";
 };
 
+const PALETTE = [
+  "cyan",
+  "magenta",
+  "yellow",
+  "green",
+  "blue",
+  "red",
+] as const;
+
+function colorFor(userId: string): (typeof PALETTE)[number] {
+  let h = 0;
+  for (let i = 0; i < userId.length; i++) {
+    h = (h * 31 + userId.charCodeAt(i)) | 0;
+  }
+  return PALETTE[Math.abs(h) % PALETTE.length]!;
+}
+
 export function StatusBar(props: StatusBarProps): React.ReactElement {
-  const { canvasId, mode, cursor, state, wsStatus } = props;
-  const online = state.presence.size;
+  const { canvasId, mode, cursor, state, ownUserId, wsStatus } = props;
+  const others = [...state.presence.entries()].filter(
+    ([uid]) => uid !== ownUserId,
+  );
   return (
     <Box flexDirection="column">
       <Text>
-        canvas: <Text bold>{canvasId}</Text> · {online} online · ws:{" "}
+        canvas: <Text bold>{canvasId}</Text> · ws:{" "}
         <Text color={wsStatus === "open" ? "green" : "yellow"}>
           {wsStatus}
         </Text>{" "}
         · mode: <Text bold>{mode.toUpperCase()}</Text> · cursor: (
         {cursor.x}, {cursor.y})
+      </Text>
+      <Text>
+        <Text color="whiteBright" bold>+</Text> you
+        {others.length > 0 ? " · " : ""}
+        {others.map(([uid, p], i) => (
+          <Text key={uid}>
+            {i > 0 ? " · " : ""}
+            <Text color={colorFor(uid)} bold>
+              {(p.name?.[0] ?? "?").toUpperCase()}
+            </Text>{" "}
+            <Text color={colorFor(uid)}>{p.name}</Text>
+          </Text>
+        ))}
       </Text>
       <Text dimColor>
         [1]dot [2]circle [3]line [4]square · hjkl move · HJKL x5 · space

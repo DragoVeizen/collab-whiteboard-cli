@@ -61,6 +61,14 @@ export function App(props: AppProps): React.ReactElement {
     const r = reduceInput(inputState, k, randomUUID);
     setInputState(r.state);
     if (r.emit) client.send(r.emit);
+    // Broadcast cursor position on any move so other users see us.
+    // Cursor events are ephemeral (server does not persist them).
+    const moved =
+      r.state.cursor.x !== inputState.cursor.x ||
+      r.state.cursor.y !== inputState.cursor.y;
+    if (moved) {
+      client.send({ type: "cursor", at: r.state.cursor });
+    }
     if (r.quit) exit();
   });
 

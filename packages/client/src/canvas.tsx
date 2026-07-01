@@ -88,13 +88,15 @@ export function Canvas(props: CanvasProps): React.ReactElement {
     ghostCells.add(`${anchor.x},${anchor.y}`);
   }
 
-  // 3. Other users' cursors as colored blocks.
+  // 3. Other users' cursors as their first-initial in a per-user color,
+  //    so you can tell who's who at a glance.
   const otherCursors = new Map<string, string>();
   for (const [uid, presence] of state.presence) {
     if (uid === ownUserId) continue;
     const { x, y } = presence.cursor;
     if (y >= 0 && y < viewport.height && x >= 0 && x < viewport.width) {
-      overlayed[y]![x] = "▓";
+      const label = (presence.name?.[0] ?? "?").toUpperCase();
+      overlayed[y]![x] = label;
       otherCursors.set(`${x},${y}`, colorFor(uid));
     }
   }

@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { initialState, reduce } from "./state.js";
-import type { ServerEvent, Shape } from "@whiteboard/shared";
+import type { PersistableEvent, ServerEvent, Shape } from "@whiteboard/shared";
 
 const draw = (
   id: string,
   userId: string,
   ts: number,
   shape: Shape,
-): ServerEvent => ({
+): PersistableEvent => ({
   type: "draw",
   id,
   canvasId: "c1",
@@ -20,7 +20,7 @@ const undo = (
   userId: string,
   ts: number,
   targetId: string,
-): ServerEvent => ({
+): PersistableEvent => ({
   type: "undo",
   id,
   canvasId: "c1",
@@ -28,7 +28,7 @@ const undo = (
   ts,
   targetId,
 });
-const clear = (id: string, userId: string, ts: number): ServerEvent => ({
+const clear = (id: string, userId: string, ts: number): PersistableEvent => ({
   type: "clear",
   id,
   canvasId: "c1",
@@ -151,7 +151,7 @@ describe("reducer: presence", () => {
 
 describe("reducer: history replay", () => {
   it("history folds equivalent to sequential reduces", () => {
-    const events: ServerEvent[] = [
+    const events: PersistableEvent[] = [
       draw("e1", "u1", 100, dot(0, 0)),
       draw("e2", "u1", 101, dot(1, 1)),
       undo("e3", "u1", 102, "e1"),

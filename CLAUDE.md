@@ -40,5 +40,10 @@ persistence tests.
 ## Testing stance
 - Reducer & schema: unit tests, comprehensive.
 - Server broadcast + Mongo persistence: one real integration test each,
-  hitting real WS + real Mongo (docker). No mocks of the thing under test.
+  hitting real WS + real Mongo. **Test env uses `mongodb-memory-server`
+  (an in-process real mongod, not a mock — same wire protocol) so tests
+  don't require the docker daemon.** Dev/prod still uses docker mongo
+  per spec.
+- No mocks of the thing under test: no `vi.mock('mongodb')`, no
+  `vi.mock('ws')`. mongodb-memory-server is fine (real mongod).
 - TUI rendering: skip snapshot tests. Test input state machine directly.

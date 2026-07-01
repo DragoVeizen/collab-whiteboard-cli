@@ -14,7 +14,10 @@ export type ClientMessage =
   | { type: "clear"; id: string }
   | { type: "cursor"; at: Coord };
 
-export type ServerEvent =
+// Events that are persisted to Mongo. Every one has id + canvasId + userId + ts.
+// This is a strict subset of ServerEvent — cursor / join / leave / history / error
+// are ephemeral and never written to the event log.
+export type PersistableEvent =
   | {
       type: "draw";
       id: string;
@@ -37,7 +40,10 @@ export type ServerEvent =
       canvasId: string;
       userId: string;
       ts: number;
-    }
+    };
+
+export type ServerEvent =
+  | PersistableEvent
   | {
       type: "cursor";
       canvasId: string;
@@ -47,7 +53,7 @@ export type ServerEvent =
     }
   | { type: "join"; canvasId: string; userId: string; userName: string }
   | { type: "leave"; canvasId: string; userId: string }
-  | { type: "history"; events: ServerEvent[] }
+  | { type: "history"; events: PersistableEvent[] }
   | { type: "error"; code: string; msg: string };
 
 const CoordSchema = z
@@ -114,8 +120,44 @@ export const ClientMessageSchema: z.ZodType<ClientMessage> = z.discriminatedUnio
   ],
 );
 
-export const ServerEventSchema: z.ZodType<ServerEvent> = z.lazy(() =>
-  z.discriminatedUnion("type", [
+export const PersistableEventSchema: z.ZodType<PersistableEvent> = z.discriminatedUnion(
+  "type",
+  [
+    z
+      .object({
+        type: z.literal("draw"),
+        id: z.string(),
+        canvasId: z.string(),
+        userId: z.string(),
+        ts: z.number(),
+        shape: ShapeSchema,
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("undo"),
+        id: z.string(),
+        canvasId: z.string(),
+        userId: z.string(),
+        ts: z.number(),
+        targetId: z.string(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("clear"),
+        id: z.string(),
+        canvasId: z.string(),
+        userId: z.string(),
+        ts: z.number(),
+      })
+      .strict(),
+  ],
+);
+
+export const ServerEventSchema: z.ZodType<ServerEvent> = z.discriminatedUnion(
+  "type",
+  [
     z
       .object({
         type: z.literal("draw"),
@@ -172,7 +214,7 @@ export const ServerEventSchema: z.ZodType<ServerEvent> = z.lazy(() =>
     z
       .object({
         type: z.literal("history"),
-        events: z.array(ServerEventSchema),
+        events: z.array(PersistableEventSchema),
       })
       .strict(),
     z
@@ -182,5 +224,5 @@ export const ServerEventSchema: z.ZodType<ServerEvent> = z.lazy(() =>
         msg: z.string(),
       })
       .strict(),
-  ]),
+  ],
 );

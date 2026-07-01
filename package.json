@@ -1,0 +1,14 @@
+{
+  "name": "whiteboard",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.2.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "build": "pnpm -r build"
+  }
+}

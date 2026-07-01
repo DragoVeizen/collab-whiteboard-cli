@@ -1,0 +1,24 @@
+{
+  "name": "@whiteboard/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "whiteboard": "./dist/cli.js"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc",
+    "dev": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@whiteboard/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9"
+  }
+}

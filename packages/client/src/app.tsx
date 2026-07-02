@@ -104,15 +104,27 @@ export function App(props: AppProps): React.ReactElement {
   }, []);
 
   useInput((input, key) => {
+    // Ctrl+B is a always-works alternate for tab-switching in case the
+    // terminal swallows the raw Tab key (some setups do).
+    const isCtrlB = key.ctrl && input === "b";
     let k = input;
-    if (key.tab) k = "tab";
-    else if (key.escape) k = "escape";
-    else if (key.return) k = "enter";
-    else if (key.backspace || key.delete) k = "backspace";
-    else if (key.upArrow) k = "k";
-    else if (key.downArrow) k = "j";
-    else if (key.leftArrow) k = "h";
-    else if (key.rightArrow) k = "l";
+    if (key.tab || input === "\t" || isCtrlB) k = "tab";
+    else if (key.escape || input === "\x1b") k = "escape";
+    else if (key.return || input === "\r" || input === "\n") k = "enter";
+    else if (
+      key.backspace ||
+      key.delete ||
+      input === "\x7f" ||
+      input === "\b"
+    )
+      k = "backspace";
+    // Arrow keys go through as explicit names; reduceInput aliases them
+    // to hjkl in canvas mode and ignores them in chat mode (so they
+    // don't accidentally type letters into the draft).
+    else if (key.upArrow) k = "arrowUp";
+    else if (key.downArrow) k = "arrowDown";
+    else if (key.leftArrow) k = "arrowLeft";
+    else if (key.rightArrow) k = "arrowRight";
     else if (input === " ") k = "space";
 
     const r = reduceInput(inputState, k, randomUUID);

@@ -85,10 +85,18 @@ export function reduceInput(
     });
 
   switch (key) {
-    case "h": return move(-1, 0);
-    case "j": return move(0, 1);
-    case "k": return move(0, -1);
-    case "l": return move(1, 0);
+    case "h":
+    case "arrowLeft":
+      return move(-1, 0);
+    case "j":
+    case "arrowDown":
+      return move(0, 1);
+    case "k":
+    case "arrowUp":
+      return move(0, -1);
+    case "l":
+    case "arrowRight":
+      return move(1, 0);
     case "H": return move(-5, 0);
     case "J": return move(0, 5);
     case "K": return move(0, -5);
@@ -174,6 +182,15 @@ export function reduceInput(
   }
 }
 
+// Arrow keys are ignored in chat mode so they don't accidentally get
+// typed as letters into the draft.
+const CHAT_IGNORED_KEYS = new Set([
+  "arrowUp",
+  "arrowDown",
+  "arrowLeft",
+  "arrowRight",
+]);
+
 function reduceChatInput(
   state: InputState,
   key: string,
@@ -194,10 +211,11 @@ function reduceChatInput(
   if (key === "escape") {
     return noEmit({ ...state, chatDraft: "" });
   }
-  // Any single printable character appends to draft. Ink passes multi-char
-  // sequences (e.g. arrow keys, function keys) as key.<name>; those hit the
-  // main mapper in app.tsx and never reach here as a single-char key. So
-  // filtering by length === 1 is enough.
+  if (key === "space") {
+    return noEmit({ ...state, chatDraft: state.chatDraft + " " });
+  }
+  if (CHAT_IGNORED_KEYS.has(key)) return noEmit(state);
+  // Any single printable character appends to draft.
   if (key.length === 1) {
     return noEmit({ ...state, chatDraft: state.chatDraft + key });
   }
